@@ -1,0 +1,4 @@
+# pyudev : device autodetecting feature
+pyudev >= 0.15
+# unittest2 : usefull if using python <= 2.6
+unittest2
