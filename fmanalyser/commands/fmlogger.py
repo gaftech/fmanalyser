@@ -18,7 +18,7 @@ class Command(BaseCommand):
         groups = super(Command, self).make_option_groups(parser)
         # Runtime options
         runtime_group = OptionGroup(parser, 'runtime options')
-        runtime_group.add_option('--sleep', default=1, type='int',
+        runtime_group.add_option('--sleep', default=1, type='float',
             help='time to sleep (s) between two probing loops')
         # Channel options
         channel_group = OptionGroup(parser, 'channel options')
