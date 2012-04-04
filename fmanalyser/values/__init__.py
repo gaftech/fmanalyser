@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 from . import validators
+from ..utils.datastructures import NOTSET
 from ..utils.log import LoggableMixin
 from .signals import ValueChangeEvent
 from pydispatch import dispatcher
 import threading
-
-class NotSet(object):
-    def __str__(self):
-        return '--'
-NOTSET = NotSet()
 
 class BoundValue(LoggableMixin, object):
     

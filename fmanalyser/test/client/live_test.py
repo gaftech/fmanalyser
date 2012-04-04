@@ -37,7 +37,7 @@ class P175Test(LiveTestCase):
         self.assertIn(data['quality'], (0,1,2,3,4,5))
         
     def test_get_rds_level(self):
-        l = self.client.get_rds_level()
+        l = self.client.get_rds()
         self.assertIsInstance(l, float)
         
 

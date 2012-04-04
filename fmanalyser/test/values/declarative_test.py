@@ -39,11 +39,8 @@ class ChannelConfigTest(TestCase):
 class DeclarativeValidatorTest(TestCase):
     """Here we test the validator class on its own."""
     
-    def test_name(self):
-        self.assertEqual(Validator1.name, None)
-    
     def test_option_count(self):
-        self.assertEqual(len(Validator1._options), 4)
+        self.assertEqual(len(Validator1._options), 5)
         
     def test_option_names(self):
         self.assertEqual(Validator1._options['opt1'].name, 'opt1')

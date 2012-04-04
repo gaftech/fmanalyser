@@ -84,10 +84,10 @@ def factory(*bases, **kwargs):
                 option = kwargs.pop(k)
             else:
                 # argument is then the default value to apply to existing option
-                option = copy(_option)
+                option = _option.clone()
                 option.default = kwargs.pop(k)
         else:
-            option = copy(_option)
+            option = _option.clone()
         NewValidator._options[k] = option
     if len(kwargs):
         raise ValueError(u"Can't set default value for missing kwargs %s" % ', '.join(kwargs))
@@ -98,17 +98,6 @@ class SignalQualityValidator(BaseIntValidator):
     def validate(self, value):
         if value < self.ref:
             raise ValidationException('Quality less than %s' % self.ref)
-        
-class CarrierFrequencyValidator(StrictIntValidator):
-    ref = options.CarrierFrequencyOption()
-        
-        
-        
-        
-        
-        
-        
-        
         
     
     

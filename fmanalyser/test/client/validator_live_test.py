@@ -34,7 +34,7 @@ class ValidatorTest(LiveTestCase):
         #       but  there should have a more appropriate place to do this
         time_limit = time.time() + timeout
         while True:
-            rds = self.client.get_rds_level()
+            rds = self.client.get_rds()
             self.assertIsInstance(rds, float)
             try:
                 self.channel.validate('rds', rds)

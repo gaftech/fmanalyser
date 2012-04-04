@@ -38,11 +38,17 @@ class DeclarativeOptionsTest(TestCase):
 
 class OptionTest(TestCase):
     
-    def test_copy_option(self):
+    def test_clone_option(self):
         original = FloatOption(default=123)
-        clone = copy(original)
+        clone = original.clone()
         clone.default = 456
         self.assertEqual(original.default, 123)
+        
+    def test_clone_owned_option(self):
+        original = AnotherHolder._options['opt1']
+        self.assertIs(original._holder, OptionHolder)
+        clone = original.clone()
+        self.assertIsNone(clone._holder)
         
     
     

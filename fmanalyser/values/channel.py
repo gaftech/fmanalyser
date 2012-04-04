@@ -20,7 +20,8 @@ class Channel(object):
         short_key = 'f',
         unit = 'MHz',
         writable = True,
-        validator = validators.CarrierFrequencyValidator,
+        validator = validators.factory(validators.StrictIntValidator,
+            ref = options.CarrierFrequencyOption(name=False))
     )
     
     rf = descriptors.ValueDescriptor(
@@ -80,15 +81,15 @@ class Channel(object):
         self.values = {}
         for k, descriptor in self._descriptors.items():
             Validator = descriptor.validator
-            if Validator is None:
-                validator = None
-            else:
-                validator_kwargs = {}
-                for option_key, option in Validator._options.iteritems():
+            validator_kwargs = {}
+            for option_key, option in Validator._options.iteritems():
+                if option.name:
                     fullkey = '%s_%s' % (k, option.name)
-                    if fullkey in kwargs:
-                        validator_kwargs[option_key] = kwargs.pop(fullkey)
-                validator = Validator(**validator_kwargs)
+                else:
+                    fullkey = k
+                if fullkey in kwargs:
+                    validator_kwargs[option_key] = kwargs.pop(fullkey)
+            validator = Validator(**validator_kwargs)
             holder = BoundValue(owner = self,
                                 descriptor = descriptor,
                                 validator = validator)
@@ -158,9 +159,11 @@ def config_section_factory(base=Channel):
         if descriptor.validator is None:
             continue
         for kk, _option in descriptor.validator._options.items():
-            option = copy(_option)
-            fullkey = '%s_%s' % (k, option.name)
-#                option.name = '%s_%s' % (k, option.name)
+            option = _option.clone()
+            if option.name:
+                fullkey = '%s_%s' % (k, option.name)
+            else:
+                fullkey = k
             assert fullkey not in attrs
             attrs[fullkey] = option
     return  type('ChannelConfigSection', (ConfigSection,), attrs)

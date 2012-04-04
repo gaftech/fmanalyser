@@ -2,17 +2,21 @@
 from fmanalyser.exceptions import InvalidOption
 from fmanalyser.utils.parse import parse_carrier_frequency,\
     parse_subcarrier_frequency
-
-NOTSET = object()
+from copy import copy
+from fmanalyser.utils.datastructures import NOTSET
 
 class Option(object):
-    _holder = None
-#    value_type = lambda x: x
     
-    def __init__(self, default=NOTSET, required=False):
+    def __init__(self, name=None, default=NOTSET, required=False):
+        self.name = name
         self.default = default
         self._required = required
-        self.name = None
+        self._holder = None
+
+    def clone(self):
+        clone = copy(self)
+        clone._holder = None
+        return clone 
 
     def __str__(self):
         return str(self.name)
@@ -22,10 +26,10 @@ class Option(object):
         return self._required and self.default is NOTSET 
 
     def contribute_to_class(self, cls, name):
-#        assert self.name is None
-#        assert self._holder is None
+        assert self._holder is None
         self._holder = cls
-        self.name = name
+        if self.name is None:
+            self.name = name
 
     def clean(self, value):
         """Returns the coerced value from a raw value"""
