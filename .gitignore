@@ -1,3 +1,5 @@
+*.pyc
 /.settings
 /.project
 /.pydevproject
+/fmanalyser.egg-info

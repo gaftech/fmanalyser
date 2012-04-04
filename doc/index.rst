@@ -15,6 +15,9 @@ Contents:
    :maxdepth: 2
    
    overview
+   config
+   utils/index
+   testing
 
 
 Indices and tables

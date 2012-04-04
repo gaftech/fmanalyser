@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup, find_packages
 from fmanalyser import __version__
+from textwrap import dedent
 
 setup(
     name = 'fmanalyser',
@@ -25,4 +26,8 @@ setup(
         'Topic :: Scientific/Engineering :: Information Analysis'
         'Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator',
     ),
+    entry_points = dedent("""
+    [console_scripts]
+    fmlogger = fmanalyser.commands.fmlogger:main
+    """),
 )
