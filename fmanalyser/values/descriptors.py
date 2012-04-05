@@ -86,7 +86,8 @@ class CarrierFrequencyDescriptor(ValueDescriptor):
         super(CarrierFrequencyDescriptor, self).__init__(**kwargs)
     
     def format_value(self, value):
-        value = float(value) / self.factor
+        if not value is NOTSET:
+            value = float(value) / self.factor
         return super(CarrierFrequencyDescriptor, self).format_value(value)
     
     

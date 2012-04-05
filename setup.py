@@ -11,7 +11,8 @@ setup(
     description = "tools for pira.cz P175 FM Analyser",
     license = 'MIT',
     install_requires = (
-        'pyserial >= 2.3', # Debian squeeze version. TODO: tests with Debian !
+        'pyserial >= 2.3',  # Debian squeeze version. TODO: tests with Debian !
+        'PyDispatcher',     # TODO: version
     ),
     packages = find_packages(),
     classifiers = (
@@ -29,5 +30,6 @@ setup(
     entry_points = dedent("""
     [console_scripts]
     fmlogger = fmanalyser.commands.fmlogger:main
+    fmgui = fmanalyser.commands.fmgui:main
     """),
 )

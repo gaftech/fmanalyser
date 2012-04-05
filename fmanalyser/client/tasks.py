@@ -17,12 +17,27 @@ class ReadChannelValues(BaseTask):
     
 class WriteChannelValue(BaseTask):
     
-    def __init__(self, worker, value):
+    def __init__(self, worker, variable):
         super(WriteChannelValue, self).__init__(worker)
-        self.value = value
+        self.variable = variable
     
     def run(self):
-        self.value.write(self.client)
+        self.variable.write(self.client)
 
-
+class TuneUpCommand(BaseTask):
+    # TODO : Integrate this in channel variable (or alike stuff) to manage events
+    def run(self):
+        self.client.tune_up()
+    
+class TuneDownCommand(BaseTask):
+    
+    def run(self):
+        self.client.tune_down()
+    
+    
+    
+    
+    
+    
+    
 

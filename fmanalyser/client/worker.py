@@ -94,8 +94,9 @@ class Worker(LoggableMixin, Stoppable):
         self._client = P175()
         self._stop = threading.Event()
         self._queue = collections.deque()
-        self._thread = threading.Thread(target=self._worker)
         self._lock = threading.Lock()
+        self._thread = threading.Thread(target=self._worker)
+        self._thread_started = False
         self._current_task = None
     
     def _worker(self):
@@ -116,13 +117,15 @@ class Worker(LoggableMixin, Stoppable):
         except Exception, e:
             with self._lock:
                 self.exc_info = sys.exc_info()
-                self.logger.warning('thread exits on exception', exc_info=True)
+                self.logger.critical('thread exits on exception', exc_info=True)
         
     def is_alive(self):
         return self._thread.is_alive()
     
     def run(self):
-        self._thread.start()
+        with self._lock:
+            self._thread_started = True
+            self._thread.start()
             
     def _on_stop(self, timeout=5):
         self.logger.debug('worker exiting...')
@@ -133,7 +136,8 @@ class Worker(LoggableMixin, Stoppable):
             if not task.stopped:
                 self.logger.debug('stopping queued task : %s' % task)
                 task.stop()
-        self._thread.join(timeout)
+        if self._thread_started:
+            self._thread.join(timeout)
         if self._thread.is_alive():
             raise RuntimeError('thread still alive')
         self.logger.debug('worker thread stopped')

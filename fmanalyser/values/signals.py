@@ -3,7 +3,6 @@ from fmanalyser.utils.signals import BaseEvent
 
 class ValueChangeEvent(BaseEvent):
     
-    kwargs = ('old_value', 'new_value')
+    kwargs = ('descriptor', 'key', 'old_value', 'new_value')
     
-
 

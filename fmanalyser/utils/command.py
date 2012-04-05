@@ -3,6 +3,8 @@ from fmanalyser.utils.log import LoggableMixin
 import fmanalyser
 import logging
 import optparse
+import signal
+from fmanalyser.client.worker import Worker
 
 class BaseCommand(LoggableMixin):
     
@@ -54,8 +56,41 @@ class BaseCommand(LoggableMixin):
         # TODO: Implement some class-level group description feature
         return []
     
-    def get_logger_name(self):
-        return 'fmanalyser.command.%s' % self.name
+#    def get_logger_name(self):
+#        return 'fmanalyser.command.%s' % self.name
+    
+    def run(self, argv=None):
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, self.stop)
+        
+        try:
+            import setproctitle
+            setproctitle.setproctitle(self.name)
+        except ImportError:
+            pass
+        
+        self.options, self.args = self.parser.parse_args(argv)
+        self.configure_logging()
+        
+        self.logger.info('running %s' % self)
+        
+        self.worker = Worker()
+        try:
+            r = self.execute()
+        finally:
+            try:
+                if self.worker.exc_info:
+                    msg = 'exception occurred in worker thread'
+                    raise RuntimeError(msg)
+            finally:
+                if not self.worker.stopped:
+                    self.worker.stop()
+        
+        self.logger.debug('Bye !')
+        return r
+    
+    def stop(self, signal, frame):
+        pass
     
     def configure_logging(self):
         
@@ -79,21 +114,5 @@ class BaseCommand(LoggableMixin):
         
         root_logger.addHandler(stderr_handler)
     
-    def run(self, argv=None):
-        self.options, self.args = self.parser.parse_args(argv)
-        self.configure_logging()
-        self.logger.info('running %s' % self)
-        r = self.execute()
-        self.logger.debug('Bye !')
-        return r
-        
-def run_main(command_cls):
-    command = command_cls()
-    name = command.name
-    try:
-        import setproctitle
-        setproctitle.setproctitle(name)
-    except ImportError:
-        pass
-    command.run()
 
+        

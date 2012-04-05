@@ -8,7 +8,6 @@ from ..values.channel import Channel
 from ..values.signals import ValueChangeEvent
 from optparse import OptionGroup, OptionConflictError
 import logging
-import signal
 import sys
 import time
 
@@ -36,7 +35,7 @@ class Command(BaseCommand):
         group.add_option('--set-freq', '-F',
             help='set initial frequency (MHz)')
         group.add_option('--mode', '-m', type='choice',
-            choices=('mes', 'rds', 'stereo'),
+            choices = MODE_CHOICES,
             help='set device mode {mes|rds|stereo}')
         group.add_option('--mes',
             action='store_const', dest='mode', const='mes',
@@ -86,44 +85,32 @@ class Command(BaseCommand):
     
     def execute(self):
         
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            signal.signal(sig, self.stop)
-        
         ValueChangeEvent.connect(self.on_value_changed)
         
         channel = self.make_channel()
-        self.worker = Worker()
-        try:
-            self.worker.run()
-            mode = self.options.mode
-            if mode is not None:
-                mode_value = channel.get_value('mode')
-                mode_value.set_command(mode)
-                self.worker.enqueue(WriteChannelValue, value=mode_value)
-            freq = self.options.set_freq
-            if freq is not None:
-                freq_value = channel.get_value('frequency')
-                freq_value.set_command(freq)
-                self.worker.enqueue(WriteChannelValue, value=freq_value)
-            while self.worker.is_alive():
-                task = self.worker.enqueue(ReadChannelValues, channel=channel)
-                task.wait(blocking=False, timeout=2)
-                time.sleep(self.options.sleep)
-        finally:
-            try:
-                if self.worker.exc_info:
-                    msg = 'exception occurred in worker thread'
-#                    self.logger.warning(msg, exc_info=self.worker.exc_info)
-                    raise RuntimeError(msg)
-            finally:
-                if not self.worker.stopped:
-                    self.worker.stop()
+        
+        self.worker.run()
+        
+        mode = self.options.mode
+        if mode is not None:
+            mode_value = channel.get_value('mode')
+            mode_value.set_command(mode)
+            self.worker.enqueue(WriteChannelValue, value=mode_value)
+        freq = self.options.set_freq
+        if freq is not None:
+            freq_value = channel.get_value('frequency')
+            freq_value.set_command(freq)
+            self.worker.enqueue(WriteChannelValue, value=freq_value)
+        while self.worker.is_alive():
+            task = self.worker.enqueue(ReadChannelValues, channel=channel)
+            task.wait(blocking=False, timeout=2)
+            time.sleep(self.options.sleep)
 
     def make_channel(self):
         channel = Channel()
-        for value in channel.get_values():
-            enabled = getattr(self.options, value.descriptor.key)
-            value.enabled = enabled
+        for variable in channel.get_variables():
+            enabled = getattr(self.options, variable.descriptor.key)
+            variable.enabled = enabled
         return channel
 
     def on_value_changed(self, sender, event):

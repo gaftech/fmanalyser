@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from . import validators, descriptors, BoundValue, NOTSET
+from . import validators, descriptors, Variable, NOTSET
 from ..exceptions import ValidationException
 from ..utils.conf import options, ConfigSection
 from ..utils.conf.declarative import DeclarativeOptionMetaclass
@@ -74,11 +74,7 @@ class Channel(object):
         return cls(**kwargs)
 
     def __init__(self, **kwargs):
-#        frequency = kwargs.pop('frequency', None)
-#        if frequency is not None:
-#            assert isinstance(frequency, int)
-#        self.frequency = frequency
-        self.values = {}
+        self._variables = {}
         for k, descriptor in self._descriptors.items():
             Validator = descriptor.validator
             validator_kwargs = {}
@@ -90,22 +86,22 @@ class Channel(object):
                 if fullkey in kwargs:
                     validator_kwargs[option_key] = kwargs.pop(fullkey)
             validator = Validator(**validator_kwargs)
-            holder = BoundValue(owner = self,
+            holder = Variable(owner = self,
                                 descriptor = descriptor,
                                 validator = validator)
 #            setattr(self, k, holder)
-            self.values[k] = holder
+            self._variables[k] = holder
         if len(kwargs):
             raise ValueError("Unexpected options : %s" % ', '.join(kwargs))
     
     def __getattr__(self, name):
-        if name not in self.values:
+        if name not in self._variables:
             raise AttributeError(name)
-        return self.values[name].get_value()
+        return self._variables[name].get_value()
     
     def __setattr__(self, name, value):
-        if name != 'values' and name in self.values:
-            self.values[name].set_value(value)
+        if name != '_variables' and name in self._variables:
+            self._variables[name].set_value(value)
         else:
             super(Channel, self).__setattr__(name, value)
         
@@ -118,17 +114,17 @@ class Channel(object):
             f = float(self.frequency)/1000
         return '%s MHz' % f
     
-    def iter_values(self):
-        return self.values.itervalues()
+    def iter_variables(self):
+        return self._variables.itervalues()
     
-    def get_values(self):
-        return self.values.values()
+    def get_variables(self):
+        return self._variables.values()
     
-    def get_value(self, key):
-        return self.values[key]
+    def get_variable(self, key):
+        return self._variables[key]
     
     def get_validator(self, key):
-        return self.values[key].validator
+        return self._variables[key].validator
     
     def is_valid(self, key, value):
         try:
@@ -144,11 +140,11 @@ class Channel(object):
         validator.validate(value)
         
     def read(self, client):
-        """Update all enabled bound values probing the device associated to `client`"""
-        for value in self.get_values():
-            if not value.descriptor.readable:
+        """Update all enabled variables probing the device associated to `client`"""
+        for variable in self._variables.values():
+            if not variable.descriptor.readable:
                 continue
-            value.update(client)
+            variable.update(client)
         
 def config_section_factory(base=Channel):
     attrs = {

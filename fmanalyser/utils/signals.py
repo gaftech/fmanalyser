@@ -29,8 +29,8 @@ class BaseEvent(object):
     kwargs = ()
     
     @classmethod
-    def connect(cls, receiver, **kwargs):
-        dispatcher.connect(receiver, signal=cls.signal, **kwargs)
+    def connect(cls, receiver, sender=dispatcher.Any, weak=True):
+        dispatcher.connect(receiver, signal=cls.signal, sender=sender, weak=weak)
     
     def __init__(self, sender, **kwargs):
         assert getattr(self, 'signal', None) is not None
