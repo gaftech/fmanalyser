@@ -21,8 +21,11 @@ Optional dependencies
 Quick module descriptions
 *************************
 
-* Client : Probes device over serial port and returns value with no particular
-   computing, except value conversion when it makes sense.
+:mod:`fmanalyser.client`
+------------------------
+
+Probes device over serial port and returns value with no particular
+computing, except value conversion when it makes sense.
 
 Future
 ******
