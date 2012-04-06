@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
-from fmanalyser.utils.signals import BaseEvent
 
-class ValueChangeEvent(BaseEvent):
-    
-    kwargs = ('descriptor', 'key', 'old_value', 'new_value')
-    
+from ..utils.dispatch import Event, Signal, EventSignal
 
+class ValueChangeEvent(Event):
+    
+    def __init__(self, variable, old_value, new_value):
+        self.variable = variable
+        self.old_value = old_value
+        self.new_value = new_value
+
+value_changed = EventSignal()

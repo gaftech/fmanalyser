@@ -1,8 +1,8 @@
-from . import saferef
+from . import saferef, event
 import threading
 import weakref
 
-DEBUG = True
+DEBUG = True # TODO: should be changeable
 WEAKREF_TYPES = (weakref.ReferenceType, saferef.BoundMethodWeakref)
 
 def _make_id(target):
@@ -10,7 +10,7 @@ def _make_id(target):
         return (id(target.im_self), id(target.im_func))
     return id(target)
 
-class Signal(object):
+class BaseSignal(object):
     """
     Base class for all signals
     
@@ -27,11 +27,40 @@ class Signal(object):
         providing_args
             A list of the arguments this signal can pass along in a send() call.
         """
+        # TODO: providing_args is kept for now but I don't get what's its purpose
+        
         self.receivers = []
         if providing_args is None:
             providing_args = []
         self.providing_args = set(providing_args)
         self.lock = threading.Lock()
+
+    def _check_receiver(self, receiver):
+        """Check validity of a receiver.
+        
+        Raises assertion error if invalid.
+        """
+        import inspect
+        assert callable(receiver), "Signal receivers must be callable."
+        
+        # Check for **kwargs
+        # Not all callables are inspectable with getargspec, so we'll
+        # try a couple different ways but in the end fall back on assuming
+        # it is -- we don't want to prevent registration of valid but weird
+        # callables.
+        try:
+            argspec = inspect.getargspec(receiver)
+        except TypeError:
+            try:
+                argspec = inspect.getargspec(receiver.__call__)
+            except (TypeError, AttributeError):
+                argspec = None
+        self._check_receiver_argspec(argspec)
+
+    def _check_receiver_argspec(self, argspec):
+        """Called by :meth:check_receiver for argspec specific checks"""
+        pass
+             
 
     def connect(self, receiver, sender=None, weak=True, dispatch_uid=None):
         """
@@ -71,24 +100,7 @@ class Signal(object):
         
         # If DEBUG is on, check that we got a good receiver
         if DEBUG:
-            import inspect
-            assert callable(receiver), "Signal receivers must be callable."
-            
-            # Check for **kwargs
-            # Not all callables are inspectable with getargspec, so we'll
-            # try a couple different ways but in the end fall back on assuming
-            # it is -- we don't want to prevent registration of valid but weird
-            # callables.
-            try:
-                argspec = inspect.getargspec(receiver)
-            except TypeError:
-                try:
-                    argspec = inspect.getargspec(receiver.__call__)
-                except (TypeError, AttributeError):
-                    argspec = None
-            if argspec:
-                assert argspec[2] is not None, \
-                    "Signal receivers must accept keyword arguments (**kwargs)."
+            self._check_receiver(receiver)
         
         if dispatch_uid:
             lookup_key = (dispatch_uid, _make_id(sender))
@@ -145,7 +157,7 @@ class Signal(object):
         finally:
             self.lock.release()
 
-    def send(self, sender, **named):
+    def send(self, sender, *args, **named):
         """
         Send signal from sender to all connected receivers.
 
@@ -157,6 +169,9 @@ class Signal(object):
         
             sender
                 The sender of the signal Either a specific object or None.
+                
+            args
+                Arguments which will be passed to receivers.
     
             named
                 Named arguments which will be passed to receivers.
@@ -168,11 +183,12 @@ class Signal(object):
             return responses
 
         for receiver in self._live_receivers(_make_id(sender)):
-            response = receiver(signal=self, sender=sender, **named)
+#            response = receiver(signal=self, sender=sender, **named)
+            response = self._call_receiver(receiver, sender, *args, **named)
             responses.append((receiver, response))
         return responses
 
-    def send_robust(self, sender, **named):
+    def send_robust(self, sender, *args, **named):
         """
         Send signal from sender to all connected receivers catching errors.
 
@@ -182,6 +198,9 @@ class Signal(object):
                 The sender of the signal. Can be any python object (normally one
                 registered with a connect if you actually want something to
                 occur).
+
+            args
+                Arguments which will be passed to receivers.
 
             named
                 Named arguments which will be passed to receivers. These
@@ -203,12 +222,16 @@ class Signal(object):
         # Return a list of tuple pairs [(receiver, response), ... ].
         for receiver in self._live_receivers(_make_id(sender)):
             try:
-                response = receiver(signal=self, sender=sender, **named)
+#                response = receiver(signal=self, sender=sender, **named)
+                response = self._call_receiver(receiver, sender, *args, **named)
             except Exception, err:
                 responses.append((receiver, err))
             else:
                 responses.append((receiver, response))
         return responses
+
+    def _call_receiver(self, receiver, *args, **named):
+        return receiver(signal=self, sender=self, *args, **named)
 
     def _live_receivers(self, senderkey):
         """
@@ -252,6 +275,39 @@ class Signal(object):
         finally:
             self.lock.release()
 
+class Signal(BaseSignal):
+    """Django version clone"""
+    
+    def _call_receiver(self, receiver, sender, *args, **named):
+        # Should we check here kwargs validity against self.providing_args ?
+        assert not args, \
+            "Only named arguments are accepted by this signal implementation"
+        return receiver(signal=self, sender=sender, **named)
+    
+    def _check_receiver_argspec(self, argspec):
+        if argspec: # TODO: Why should it evaluate to False ?
+            assert argspec[2] is not None, \
+                "Signal receivers must accept keyword arguments (**kwargs)."
+
+class EventSignal(BaseSignal):
+    """A signal with only one acceptable argument : an event object.
+    """
+    
+    def __init__(self, event_cls=event.Event, **kwargs):
+        super(EventSignal, self).__init__(**kwargs)
+        self.event_cls = event_cls
+    
+    def _check_receiver_argspec(self, argspec):
+        assert argspec[1] is not None and len(argspec[1]) == 2, \
+            "Signal receivers must accept an event argument."
+
+    def _call_receiver(self, receiver, sender, event):
+        return receiver(self, sender, event)
+
+    def fire(self, sender, *args, **kwargs):
+        """Build an event using provided args and sends it"""
+        event = self.event_cls(*args, **kwargs)
+        self.send(sender, event)
 
 def receiver(signal, **kwargs):
     """
