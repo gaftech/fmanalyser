@@ -93,14 +93,14 @@ class Command(BaseCommand):
         
         mode = self.options.mode
         if mode is not None:
-            mode_value = channel.get_value('mode')
-            mode_value.set_command(mode)
-            self.worker.enqueue(WriteChannelValue, value=mode_value)
+            mode_variable = channel.get_variable('mode')
+            mode_variable.set_command(mode)
+            self.worker.enqueue(WriteChannelValue, variable=mode_variable)
         freq = self.options.set_freq
         if freq is not None:
-            freq_value = channel.get_value('frequency')
-            freq_value.set_command(freq)
-            self.worker.enqueue(WriteChannelValue, value=freq_value)
+            freq_variable = channel.get_variable('frequency')
+            freq_variable.set_command(freq)
+            self.worker.enqueue(WriteChannelValue, variable=freq_variable)
         while self.worker.is_alive():
             task = self.worker.enqueue(ReadChannelValues, channel=channel)
             task.wait(blocking=False, timeout=2)
