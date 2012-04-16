@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 from . import view
 from ..client.tasks import ReadChannelValues
+from ..models import channel
+from ..models.signals import value_changed
 from ..utils.log import LoggableMixin
-from ..values import channel
-from pydispatch.dispatcher import liveReceivers, getAllReceivers
+from fmanalyser.client.tasks import WriteChannelValue, TuneUpCommand, \
+    TuneDownCommand
+from pydispatch.dispatcher import liveReceivers, getAllReceivers, connect
 import sys
 import threading
 import time
 import wx
-from fmanalyser.client.tasks import WriteChannelValue, TuneUpCommand,\
-    TuneDownCommand
 
 class Controller(LoggableMixin):
     
@@ -53,11 +54,12 @@ class Controller(LoggableMixin):
             
     def add_channel_variable_listener(self, listener, value_key):
         with self._lock:
-            # TODO: maybe implement our own widget notification system, lighter than using pydispatcher 
+            # TODO: maybe implement our own widget notification system, lighter
+            # than using pydispatcher 
             def callback(sender, event):
                 wx.CallAfter(listener, sender, event)
-            sender = self._channel.get_variable(value_key)
-            sender.connect_change_listener(callback, weak=False)
+            variable = self._channel.get_variable(value_key)
+            connect(callback, value_changed, variable, False)
             self._update_channel_variables()
 
     def set_channel_command(self, key, value):

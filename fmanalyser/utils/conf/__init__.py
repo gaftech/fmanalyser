@@ -159,14 +159,12 @@ class ConfigSection(ParserAccess):
         return values
     
     def get_defaults(self):
-#        return self._dict((option.name, option.default) for option in self._options.itervalues())
         return self._dict((k, option.default) for (k, option) in self._options.items())
     
     def clean_values(self, raw_values):
         values = self._dict()
         raw_values = copy(raw_values)
         for k, option in self._options.iteritems():
-#            k = option.name
             try:
                 raw = raw_values.pop(k)
             except KeyError:

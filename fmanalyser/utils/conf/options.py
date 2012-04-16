@@ -7,8 +7,8 @@ from fmanalyser.utils.datastructures import NOTSET
 
 class Option(object):
     
-    def __init__(self, name=None, default=NOTSET, required=False):
-        self.name = name
+    def __init__(self, default=NOTSET, required=False):
+#        self.name = name
         self.default = default
         self._required = required
         self._holder = None
@@ -18,8 +18,8 @@ class Option(object):
         clone._holder = None
         return clone 
 
-    def __str__(self):
-        return str(self.name)
+#    def __str__(self):
+#        return str(self.name)
 
     @property
     def required(self):
@@ -28,8 +28,8 @@ class Option(object):
     def contribute_to_class(self, cls, name):
         assert self._holder is None
         self._holder = cls
-        if self.name is None:
-            self.name = name
+#        if self.name is None:
+#            self.name = name
 
     def clean(self, value):
         """Returns the coerced value from a raw value"""

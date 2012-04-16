@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from .. import LiveTestCase
-from ...values.channel import Channel
+from ...exceptions import ValidationException
+from ...models.channel import Channel
 import time
-from fmanalyser.exceptions import ValidationException
 
 class ValidatorTest(LiveTestCase):
     

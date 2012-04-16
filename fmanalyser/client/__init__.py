@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-from .. import values
 from ..exceptions import DeviceNotFound, MultipleDevicesFound
 from ..utils import log
 from ..utils.parse import parse_carrier_frequency, parse_subcarrier_frequency, \
     parse_int, parse_histogram_data, parse, parse_float
 from copy import copy
-import serial
 from fmanalyser.utils.log import LoggableMixin
+import serial
 
 MEASURING_MODE = 'mes'
 STEREO_MODE = 'stereo'
@@ -250,4 +249,6 @@ class P175(LoggableMixin, object):
     def get_pilot(self):
         return parse_subcarrier_frequency(self._probe_lines('?L')[1])
     
-    
+    def get_rds_data(self):
+        # TODO: implement me !
+        return {}

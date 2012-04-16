@@ -2,13 +2,10 @@
 from . import validators
 from ..utils.datastructures import NOTSET
 from ..utils.log import LoggableMixin
-from .signals import ValueChangeEvent
-from pydispatch import dispatcher
+from .signals import value_changed
 import threading
 
 class Variable(LoggableMixin, object):
-    
-    change_event_cls = ValueChangeEvent
     
     def __init__(self, owner, descriptor, validator):
         
@@ -23,7 +20,8 @@ class Variable(LoggableMixin, object):
         self._lock = threading.Lock()
 
     def __str__(self):
-        return '%s: %s' % (self._descriptor._key, self._descriptor.format_value(self._value))
+        return '%s: %s' % (self._descriptor._key,
+                           self.render())
 
     @property
     def descriptor(self):
@@ -37,6 +35,14 @@ class Variable(LoggableMixin, object):
     def value(self):
         return self._value
 
+    @property
+    def unit(self):
+        return self._descriptor.unit
+
+    @property
+    def device_mode(self):
+        return self._descriptor.device_mode
+
     def _get_enabled(self):
         return self._validator.enabled
 
@@ -49,17 +55,16 @@ class Variable(LoggableMixin, object):
         return self._value
     
     def set_value(self, value):
-        # TODO: Learn/understand more about locks to determine if locking has any interest
+        # TODO: Learn/understand more about locks to determine if locking has any
+        # interest
         with self._lock:
-            event = self.change_event_cls(
-                sender = self,
-                descriptor = self.descriptor,
-                key = self.descriptor.key,
-                old_value = self._value,
-                new_value = value
-            )
+            old_value = self._value
             self._value = value
-        event.fire()
+            value_changed.send(
+                sender = self,
+                old_value = old_value,
+                new_value = self._value                               
+            )
     
     def get_command(self):
         return self._command
@@ -68,18 +73,14 @@ class Variable(LoggableMixin, object):
         if clean_value:
             value = self._validator.clean(value)
         self._command = value
-    
-    def connect_change_listener(self, listener, weak=True):
-        self.change_event_cls.connect(listener, sender=self, weak=weak)
+
+    def render(self):
+        return self._descriptor.render_value(self._value)
     
     def read(self, client):
         """Probes the device client to get actual value""" 
         with self._lock:
             return self._descriptor.read(client)
-    
-    def write(self, client):
-        with self._lock:
-            self._descriptor.write(client, self._command)
      
     def update(self, client):
         if self.enabled:

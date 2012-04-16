@@ -1,87 +1,12 @@
 # -*- coding: utf-8 -*-
-from . import P175
+from . import P175, tasks
 from .. import settings
-from ..exceptions import QueueFull, Timeout
+from ..exceptions import QueueFull
+from ..utils.log import LoggableMixin
+from ..utils.threads import Stoppable
 import collections
-import logging
-import threading
-import time
 import sys
-from fmanalyser.utils.log import LoggableMixin
-
-class Stoppable(object):
-    
-    def __init__(self, *args, **kwargs):
-        super(Stoppable, self).__init__(*args, **kwargs)
-        self._stop = threading.Event()
-        self._lock = threading.Lock()
-    
-    
-    @property
-    def stopped(self):
-        return self._stop.is_set()
-    
-    def stop(self, *args, **kwargs):
-        with self._lock:
-            if self._stop.is_set():
-#                self.logger.warning('already stopping !')
-                raise RuntimeError('already stopping')
-            self._stop.set()
-            self._on_stop(*args, **kwargs)
-
-    def _on_stop(self, *args, **kwargs):
-        pass
-
-    def wait(self, timeout=None, blocking=True):
-        if blocking:
-            self._wait_blocking(timeout)
-        else:
-            self._wait_non_blocking(timeout)
-
-    def _wait_non_blocking(self, timeout):
-        if timeout is not None:
-            time_limit = time.time() + timeout
-        while not self._stop.is_set():
-            if timeout is not None and time.time() > time_limit:
-                raise Timeout(self)
-            time.sleep(settings.WATCHER_SLEEP_TIME)
-
-    def _wait_blocking(self, timeout):
-        self._stop.wait(timeout)
-        if not self._stop.is_set():
-            raise Timeout(self)
-
-class BaseTask(LoggableMixin, Stoppable):
-    
-    def __init__(self, worker):
-        super(BaseTask, self).__init__()
-        self._worker = worker
-        self._done = False
-    
-    @property
-    def client(self):
-        return self._worker._client
-    
-    def perform(self):
-        try:
-            self.logger.debug('performing %s...' % self)
-            self.run()
-            self._done = True
-            self.logger.debug('%s done' % self)
-        finally:
-            self._stop.set()
-    
-    def run(self):
-        pass
-
-class CallbackTask(BaseTask):
-    
-    def __init__(self, worker, callback):
-        super(CallbackTask, self).__init__(worker=worker)
-        self.callback = callback
-    
-    def run(self):
-        return self.callback()
+import threading
 
 class Worker(LoggableMixin, Stoppable):
     
@@ -122,6 +47,12 @@ class Worker(LoggableMixin, Stoppable):
     def is_alive(self):
         return self._thread.is_alive()
     
+    def acquire(self):
+        self._lock.acquire()
+    
+    def release(self):
+        self._lock.release()
+    
     def run(self):
         with self._lock:
             self._thread_started = True
@@ -142,7 +73,12 @@ class Worker(LoggableMixin, Stoppable):
             raise RuntimeError('thread still alive')
         self.logger.debug('worker thread stopped')
     
-    def enqueue(self, task_class=CallbackTask, *args, **kwargs):
+    def enqueue(self, *args, **kwargs):
+        """Enqueues a :class:`tasks.CallbackTask` instance 
+        """
+        
+        task_class = tasks.CallbackTask
+        
         if self.max_queue_size and len(self._queue) > self.max_queue_size:
             raise QueueFull('worker queue size : %s' % len(self._queue))
         if self._stop.is_set():
@@ -150,12 +86,15 @@ class Worker(LoggableMixin, Stoppable):
 #            self.logger.warning('can not enqueue task while stopping : %s' % task)
 #            return task
         with self._lock:
-            task = task_class(worker=self, *args, **kwargs)
-            self.logger.debug('enqueuing task : %s' % task)
+            task = task_class(*args, **kwargs)
             self._queue.append(task)
             self.logger.debug('task enqueued : %s' % task)
         return task
     
-    
+    def enqueue_task(self, task):
+        with self._lock:
+            self._queue.append(task)
+            self.logger.debug('task enqueued : %s' % task)
+        return task        
     
     

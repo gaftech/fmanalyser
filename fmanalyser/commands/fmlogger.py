@@ -2,10 +2,9 @@
 # -*- coding: utf-8 -*-
 from ..client import MODE_CHOICES
 from ..client.tasks import ReadChannelValues, WriteChannelValue
-from ..client.worker import Worker
+from ..models.channel import Channel
+from ..models.signals import ValueChangeEvent
 from ..utils.command import BaseCommand
-from ..values.channel import Channel
-from ..values.signals import ValueChangeEvent
 from optparse import OptionGroup, OptionConflictError
 import logging
 import sys

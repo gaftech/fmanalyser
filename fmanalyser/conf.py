@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from .utils.conf import ConfigSection, BaseConfig, options
-from .values import channel
+from .models import channel
 import os.path
 
 CONF_DIR = os.path.expanduser('~/.fmanalyser/')

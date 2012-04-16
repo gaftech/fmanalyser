@@ -1,20 +1,17 @@
 # -*- coding: utf-8 -*-
-from . import validators, NOTSET
+from . import validators
+from ..utils.datastructures import NOTSET
 
 class ValueDescriptor(object):
-    
+    """Describes a variable that will be attached to the :class:`Channel` class.
+    """    
     def __init__(self,
                  verbose_name = None,
                  short_key = None,
                  unit = None,
-                 readable = True,
-                 writable = False,
+                 device_mode = None,
                  validator = validators.Validator,
             ):
-        """
-        ..todo: Provide default values for readable/writable. Maybe based on client class introspection.
-        """
-
 
         # default values
         
@@ -23,12 +20,11 @@ class ValueDescriptor(object):
         
         # private attributes from arguments
         self._verbose_name = verbose_name
+        self._device_mode = device_mode
         
         # public attributes from arguments
         self.short_key = short_key
         self.unit = unit
-        self.readable = readable
-        self.writable = writable
         self.validator = validator
 
         # other private attributes 
@@ -50,29 +46,27 @@ class ValueDescriptor(object):
     
     key = property(_get_key, _set_key)
     
-    
     @property
     def verbose_name(self):
         if self._verbose_name is None:
             return self._key
         return self._verbose_name
     
+    @property
+    def device_mode(self):
+        return self._device_mode
+    
     def contribute_to_class(self, holder_cls, name):
         self.key = name
     
     def read(self, client):
-        assert self.readable
         return client.read(self.key)
-    
-    def write(self, client, value):
-        assert self.writable
-        return client.write(self.key, value)
-    
-    def format_value(self, value):
-        if self.unit is None:
-            return str(value)
-        else:
+
+    def render_value(self, value):
+        if self.unit:
             return '%s %s' % (value, self.unit)
+        else:
+            return str(value)
     
 class CarrierFrequencyDescriptor(ValueDescriptor):
     """Represents a value stored as an integer and displayed as a floating point number"""
@@ -85,10 +79,10 @@ class CarrierFrequencyDescriptor(ValueDescriptor):
         self.factor = factor
         super(CarrierFrequencyDescriptor, self).__init__(**kwargs)
     
-    def format_value(self, value):
+    def render_value(self, value):
         if not value is NOTSET:
             value = float(value) / self.factor
-        return super(CarrierFrequencyDescriptor, self).format_value(value)
+        return super(CarrierFrequencyDescriptor, self).render_value(value)
     
     
     

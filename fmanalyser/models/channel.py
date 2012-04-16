@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from . import validators, descriptors, Variable, NOTSET
+from . import validators, descriptors, Variable
 from ..exceptions import ValidationException
 from ..utils.conf import options, ConfigSection
 from ..utils.conf.declarative import DeclarativeOptionMetaclass
-from copy import copy
-from fmanalyser.client import MODE_CHOICES
-
-
+from ..utils.datastructures import NOTSET
+from ..client import RDS_MODE, MEASURING_MODE, STEREO_MODE
+import threading
+from fmanalyser.exceptions import MissingOption
 
 class ChannelBase(DeclarativeOptionMetaclass):
     _metaname = '_descriptors'
@@ -19,15 +19,15 @@ class Channel(object):
     frequency = descriptors.CarrierFrequencyDescriptor(
         short_key = 'f',
         unit = 'MHz',
-        writable = True,
         validator = validators.factory(validators.StrictIntValidator,
-            ref = options.CarrierFrequencyOption(name=False))
+            ref = options.CarrierFrequencyOption())
     )
     
     rf = descriptors.ValueDescriptor(
         short_key = 'l',
         unit = u'dBµV',
-        validator = validators.factory(validators.RelativeFloatThresholdValidator, high=6, low=6)                        
+        validator = validators.factory(validators.RelativeFloatThresholdValidator,
+                                       high=6, low=6)                        
     )
     
     quality = descriptors.ValueDescriptor(
@@ -51,14 +51,9 @@ class Channel(object):
                                        ref = 4, high = 0.5, low = 0.5)
     )
     
-    mode = descriptors.ValueDescriptor(
-        verbose_name = 'measuring mode',
-        readable = False,
-        writable = True,
-        validator = validators.factory(
-            ref = options.ChoiceOption(choices = MODE_CHOICES)
-        )                                          
-    )
+    rds_lock_time = options.FloatOption(default=5)
+    measure_lock_time = options.FloatOption(default=5)
+    stereo_lock_time = options.FloatOption(default=5)
     
     @classmethod
     def iter_descriptors(cls):
@@ -79,20 +74,31 @@ class Channel(object):
             Validator = descriptor.validator
             validator_kwargs = {}
             for option_key, option in Validator._options.iteritems():
-                if option.name:
-                    fullkey = '%s_%s' % (k, option.name)
-                else:
+                if option_key == 'ref':
                     fullkey = k
+                else:
+                    fullkey = '%s_%s' % (k, option_key)
                 if fullkey in kwargs:
                     validator_kwargs[option_key] = kwargs.pop(fullkey)
             validator = Validator(**validator_kwargs)
-            holder = Variable(owner = self,
-                                descriptor = descriptor,
-                                validator = validator)
-#            setattr(self, k, holder)
-            self._variables[k] = holder
+            self._variables[k] = Variable(owner = self,
+                                          descriptor = descriptor,
+                                          validator = validator)
+        
+        # Set instance options
+        for k, option in self.__class__.__dict__.items():
+            if not isinstance(option, options.Option):
+                continue
+            if option.required and k not in kwargs:
+                raise MissingOption(k)
+            setattr(self, k, kwargs.pop(k, option.default))
+            
+            
+            
         if len(kwargs):
             raise ValueError("Unexpected options : %s" % ', '.join(kwargs))
+
+        self._lock = threading.Lock()
     
     def __getattr__(self, name):
         if name not in self._variables:
@@ -107,12 +113,7 @@ class Channel(object):
         
     
     def __str__(self):
-        f = self.frequency
-        if f is NOTSET:
-            f = '--'
-        else:
-            f = float(self.frequency)/1000
-        return '%s MHz' % f
+        return self._variables['frequency'].render()
     
     def iter_variables(self):
         return self._variables.itervalues()
@@ -120,8 +121,25 @@ class Channel(object):
     def get_variables(self):
         return self._variables.values()
     
+    def filter_variables(self, enabled=None, device_mode=None):
+        variables = []
+        for var in self._variables.values():
+            if enabled is not None and var.enabled != enabled:
+                continue
+            if device_mode is not None and var.device_mode != device_mode:
+                continue
+            variables.append(var)
+        return variables
+    
     def get_variable(self, key):
         return self._variables[key]
+    
+    def get_variables_by_mode(self, **filters):
+        variables = {}
+        for variable in self.filter_variables(**filters):
+            mode = variable.device_mode
+            variables.setdefault(mode, []).append(variable)
+        return variables
     
     def get_validator(self, key):
         return self._variables[key].validator
@@ -138,28 +156,41 @@ class Channel(object):
         if validator is None:
             raise ValidationException('No validator for this key : %s' % key) 
         validator.validate(value)
-        
-    def read(self, client):
+    
+    def tune(self, client):
+        assert self.frequency is not NOTSET
+        client.tune(self.frequency)
+    
+    
+    
+    def update(self, client):
         """Update all enabled variables probing the device associated to `client`"""
+        # TODO: Here we should check the device frequency
         for variable in self._variables.values():
-            if not variable.descriptor.readable:
-                continue
             variable.update(client)
+
+    def update_rds_data(self, client):
+        for k, v in client.get_rds_data().items():
+            self._variables[k].set_value(v)
         
 def config_section_factory(base=Channel):
     attrs = {
         'section': 'channel',
-#        'frequency': options.CarrierFrequencyOption(required=True),
     }
     for k, descriptor in base._descriptors.items():
-        if descriptor.validator is None:
-            continue
-        for kk, _option in descriptor.validator._options.items():
+        for option_key, _option in descriptor.validator._options.items():
             option = _option.clone()
-            if option.name:
-                fullkey = '%s_%s' % (k, option.name)
-            else:
+            if option_key == 'ref':
                 fullkey = k
+            else:
+                fullkey = '%s_%s' % (k, option_key)
             assert fullkey not in attrs
             attrs[fullkey] = option
+    
+    for k, _option in base.__dict__.items():
+        if not isinstance(_option, options.Option):
+            continue
+        assert k not in attrs
+        attrs[k] = _option.clone()
+    
     return  type('ChannelConfigSection', (ConfigSection,), attrs)

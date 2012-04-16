@@ -1,4 +1,5 @@
-from . import saferef, event
+from . import saferef
+from .. import signals
 import threading
 import weakref
 
@@ -293,7 +294,7 @@ class EventSignal(BaseSignal):
     """A signal with only one acceptable argument : an event object.
     """
     
-    def __init__(self, event_cls=event.Event, **kwargs):
+    def __init__(self, event_cls=signals.Event, **kwargs):
         super(EventSignal, self).__init__(**kwargs)
         self.event_cls = event_cls
     

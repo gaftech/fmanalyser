@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from ..utils.dispatch import Event, Signal, EventSignal
+from ..utils.signals import Event, Signal, EventSignal
 
 class ValueChangeEvent(Event):
     
@@ -9,4 +9,4 @@ class ValueChangeEvent(Event):
         self.old_value = old_value
         self.new_value = new_value
 
-value_changed = EventSignal()
+value_changed = EventSignal(event_cls=ValueChangeEvent)

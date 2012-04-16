@@ -9,4 +9,4 @@ Heavily modified for Django's purposes.
 """
 
 from .dispatcher import Signal, receiver, EventSignal
-from .event import Event
+from ..signals import Event

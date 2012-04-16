@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """Tests our black magic stuffs about declarative option and validators metaclasses"""
-from fmanalyser.test import TestCase
-from fmanalyser.utils.conf import options
-from fmanalyser.values import validators
-from fmanalyser.values.channel import ChannelBase, config_section_factory
-from fmanalyser.values.descriptors import ValueDescriptor
+from .. import TestCase
+from ...models import validators
+from ...models.channel import ChannelBase, config_section_factory
+from ...models.descriptors import ValueDescriptor
+from ...utils.conf import options
 
 class Validator1(validators.Validator):
     
@@ -42,9 +42,9 @@ class DeclarativeValidatorTest(TestCase):
     def test_option_count(self):
         self.assertEqual(len(Validator1._options), 5)
         
-    def test_option_names(self):
-        self.assertEqual(Validator1._options['opt1'].name, 'opt1')
-        self.assertEqual(Validator1._options['opt2'].name, 'opt2')
+#    def test_option_names(self):
+#        self.assertEqual(Validator1._options['opt1'].name, 'opt1')
+#        self.assertEqual(Validator1._options['opt2'].name, 'opt2')
     
     
 

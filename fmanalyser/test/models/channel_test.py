@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from fmanalyser.test import TestCase
-from fmanalyser.conf import Config
-from fmanalyser.values.channel import Channel
+from .. import TestCase
+from ...models.channel import Channel
+from ...conf import Config
 
 class ChannelConfigTest(TestCase):
     
