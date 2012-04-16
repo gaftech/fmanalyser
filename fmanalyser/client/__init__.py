@@ -174,28 +174,28 @@ class P175(LoggableMixin, object):
         self._write('*0')
 
     def set_auto_lcd_light(self, save=False):
-        self._set_dip_switch(0, 0)
+        self._set_dip_switch(0, 0, save)
     
     def set_manual_lcd_light(self, save=False):
-        self._set_dip_switch(0, 1)
+        self._set_dip_switch(0, 1, save)
     
     def switch_on_manual_lcd_light(self, save=False):
-        self._set_dip_switch(1, 1)
+        self._set_dip_switch(1, 1, save)
     
     def switch_off_manual_lcd_light(self, save=False):
-        self._set_dip_switch(1, 0)
+        self._set_dip_switch(1, 0, save)
     
     def activate_fine_tuning(self, save=False):
-        self._set_dip_switch(2, 0)
+        self._set_dip_switch(2, 0, save)
     
     def deactivate_fine_tuning(self, save=False):
-        self._set_dip_switch(2, 1)
+        self._set_dip_switch(2, 1, save)
     
     def set_low_scan_sensitivity(self, save=False):
-        self._set_dip_switch(3, 0)
+        self._set_dip_switch(3, 0, save)
     
     def set_high_scan_sensitivity(self, save=False):
-        self._set_dip_switch(3, 1)
+        self._set_dip_switch(3, 1, save)
     
     def _set_dip_switch(self, switch, state, save):
         if isinstance(state, bool):
