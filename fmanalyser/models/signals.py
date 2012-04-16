@@ -4,8 +4,8 @@ from ..utils.signals import Event, Signal, EventSignal
 
 class ValueChangeEvent(Event):
     
-    def __init__(self, variable, old_value, new_value):
-        self.variable = variable
+    def __init__(self, sender, old_value, new_value):
+        self.sender = sender
         self.old_value = old_value
         self.new_value = new_value
 

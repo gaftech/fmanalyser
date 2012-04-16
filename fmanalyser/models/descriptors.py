@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from . import validators
 from ..utils.datastructures import NOTSET
+from ..client import MEASURING_MODE
 
 class ValueDescriptor(object):
     """Describes a variable that will be attached to the :class:`Channel` class.
@@ -9,7 +10,7 @@ class ValueDescriptor(object):
                  verbose_name = None,
                  short_key = None,
                  unit = None,
-                 device_mode = None,
+                 device_mode = MEASURING_MODE,
                  validator = validators.Validator,
             ):
 

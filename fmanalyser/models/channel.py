@@ -158,8 +158,9 @@ class Channel(object):
         validator.validate(value)
     
     def tune(self, client):
-        assert self.frequency is not NOTSET
-        client.tune(self.frequency)
+        F = self._variables['frequency'].validator.ref
+        assert F is not NOTSET
+        client.tune(F)
     
     
     
@@ -169,9 +170,18 @@ class Channel(object):
         for variable in self._variables.values():
             variable.update(client)
 
-    def update_rds_data(self, client):
+    def update_rds_variables(self, client, **filters):
+#        filters['device_mode'] = RDS_MODE
+        self._update_rds_data(client)
+        
+    def _update_rds_data(self, client):
         for k, v in client.get_rds_data().items():
             self._variables[k].set_value(v)
+    
+    def update_mode_variables(self, client, mode, **filters):
+        filters['device_mode'] = mode
+        for variable in self.filter_variables(**filters):
+            variable.update(client)
         
 def config_section_factory(base=Channel):
     attrs = {

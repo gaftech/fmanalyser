@@ -19,7 +19,7 @@ class Worker(LoggableMixin, Stoppable):
         self._client = P175()
         self._stop = threading.Event()
         self._queue = collections.deque()
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._thread = threading.Thread(target=self._worker)
         self._thread_started = False
         self._current_task = None
@@ -32,7 +32,7 @@ class Worker(LoggableMixin, Stoppable):
                     with self._lock:
                         task = self._queue.popleft()
                         self._current_task = task
-                    task.perform()
+                    task.perform(worker=self)
                     self._current_task = None
                 else:
 #                    self.logger.debug('empty queue, waiting %s s' % self.empty_queue_timeout)

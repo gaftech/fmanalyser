@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from ..client import MODE_CHOICES
-from ..client.tasks import ReadChannelValues, WriteChannelValue
 from ..models.channel import Channel
 from ..models.signals import ValueChangeEvent
 from ..utils.command import BaseCommand
@@ -9,6 +8,10 @@ from optparse import OptionGroup, OptionConflictError
 import logging
 import sys
 import time
+from fmanalyser.models.signals import value_changed
+from fmanalyser.models.analyser import Analyser
+from fmanalyser.utils.parse import parse_carrier_frequency
+from fmanalyser.utils.datastructures import NOTSET
 
 class Command(BaseCommand):
     
@@ -33,22 +36,8 @@ class Command(BaseCommand):
         # initial frequency
         group.add_option('--set-freq', '-F',
             help='set initial frequency (MHz)')
-        group.add_option('--mode', '-m', type='choice',
-            choices = MODE_CHOICES,
-            help='set device mode {mes|rds|stereo}')
-        group.add_option('--mes',
-            action='store_const', dest='mode', const='mes',
-            help='set measurement mode')
-        group.add_option('--rdsm', '--rds-mode', 
-            action='store_const', dest='mode', const='rds',
-            help='set rds mode')
-        group.add_option('--stereo',
-            action='store_const', dest='mode', const='stereo',
-            help='set stereo mode')
         # measurements
         for descriptor in Channel.iter_descriptors():
-            if not descriptor.readable:
-                continue
             longopt = '--%s' % descriptor.key
             shortopt = None
             if descriptor.short_key is not None:
@@ -84,41 +73,36 @@ class Command(BaseCommand):
     
     def execute(self):
         
-        ValueChangeEvent.connect(self.on_value_changed)
+        value_changed.connect(self._on_value_changed)
         
-        channel = self.make_channel()
+        channel = self._make_channel()
+        analyser = Analyser(client_worker=self.worker, channels=[channel])
         
         self.worker.run()
         
-        mode = self.options.mode
-        if mode is not None:
-            mode_variable = channel.get_variable('mode')
-            mode_variable.set_command(mode)
-            self.worker.enqueue(WriteChannelValue, variable=mode_variable)
-        freq = self.options.set_freq
-        if freq is not None:
-            freq_variable = channel.get_variable('frequency')
-            freq_variable.set_command(freq)
-            self.worker.enqueue(WriteChannelValue, variable=freq_variable)
         while self.worker.is_alive():
-            task = self.worker.enqueue(ReadChannelValues, channel=channel)
+            task = analyser.trigger_measurements()
             task.wait(blocking=False, timeout=2)
             time.sleep(self.options.sleep)
 
-    def make_channel(self):
-        channel = Channel()
+    def _make_channel(self):
+        F = NOTSET
+        if self.options.set_freq:
+            F = parse_carrier_frequency(self.options.set_freq)
+        channel = Channel(frequency=F)
         for variable in channel.get_variables():
             enabled = getattr(self.options, variable.descriptor.key)
             variable.enabled = enabled
         return channel
 
-    def on_value_changed(self, sender, event):
-        message = self.format_event(event)
+    def _on_value_changed(self, sender, event):
+        message = self._format_event(event)
         self.log_data(message)
     
-    def format_event(self, event):
+    def _format_event(self, event):
         descriptor = event.sender.descriptor
-        return '%s: %s' % (descriptor.key, descriptor.format_value(event.new_value)) 
+        return '%s: %s' % (descriptor.key,
+                           descriptor.render_value(event.new_value)) 
 
     def log_data(self, message):
         self.datalogger.info(message)

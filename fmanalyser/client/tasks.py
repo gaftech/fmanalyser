@@ -24,17 +24,27 @@ class CallbackTask(BaseTask):
     """Calls a function or a client's method when ran by the worker.
     """
     
-    def __init__(self, worker, callback, *args, **kwargs):
+    def __init__(self, callback, *args, **kwargs):
         """
         :param callback:
             Either a client's method name or a callable that takes the client
             instance as first argument
         """
         
-        super(CallbackTask, self).__init__(worker=worker)
+        super(CallbackTask, self).__init__()
         self.callback = callback
         self.args = args
         self.kwargs = kwargs
+    
+    def __str__(self):
+        name = '???'
+        if isinstance(self.callback, basestring):
+            name = self.callback
+        elif hasattr(self.callback, 'im_self'):
+            name = '%s.%s' % (self.callback.im_class.__name__,
+                              self.callback.__name__)
+        
+        return 'callback : %s' % name
     
     def run(self, worker):
         client = worker._client

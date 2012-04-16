@@ -4,7 +4,6 @@
 from ..exceptions import ValidationException, MissingOption, UnexpectedOption
 from ..utils.conf import options
 from ..utils.conf.declarative import DeclarativeOptionMetaclass
-from copy import copy
 
 class Validator(object):
     __metaclass__ = DeclarativeOptionMetaclass

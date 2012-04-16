@@ -10,8 +10,9 @@ class Event(object):
     """
     
 class Signal(object):
-    pass
-
+    
+    def connect(self, receiver, sender=dispatcher.Any, weak=True):
+        dispatcher.connect(receiver, signal=self, sender=sender, weak=weak)
 
 class EventSignal(Signal):
     
@@ -19,7 +20,7 @@ class EventSignal(Signal):
         self.event_cls = event_cls
         
     def send(self, sender, *event_args, **event_kwargs):
-        event = self.event_cls(*event_args, **event_kwargs)
+        event = self.event_cls(sender=sender, *event_args, **event_kwargs)
         dispatcher.send(signal=self, sender=sender, event=event)
     
-
+    
