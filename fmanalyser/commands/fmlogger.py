@@ -81,7 +81,7 @@ class Command(BaseCommand):
         self.worker.run()
         
         while self.worker.is_alive():
-            task = analyser.trigger_measurements()
+            task = analyser.enqueue_updates()
             task.wait(blocking=False, timeout=2)
             time.sleep(self.options.sleep)
 

@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
 from . import validators, descriptors, Variable
-from ..exceptions import ValidationException
+from ..client import RDS_MODE, MEASURING_MODE, STEREO_MODE, tasks
+from ..exceptions import ValidationException, MissingOption
 from ..utils.conf import options, ConfigSection
 from ..utils.conf.declarative import DeclarativeOptionMetaclass
 from ..utils.datastructures import NOTSET
-from ..client import RDS_MODE, MEASURING_MODE, STEREO_MODE
 import threading
-from fmanalyser.exceptions import MissingOption
 
 class ChannelBase(DeclarativeOptionMetaclass):
     _metaname = '_descriptors'
@@ -162,7 +161,51 @@ class Channel(object):
         assert F is not NOTSET
         client.tune(F)
     
-    
+    def enqueue_updates(self, worker):
+        task = None
+        
+        worker.acquire()
+        try:
+            
+            # Tuning to the right frequency, if specified
+            if self.frequency is not NOTSET:
+                task = worker.enqueue(self.tune)
+                
+            variables = self.get_variables_by_mode(enabled=True)            
+                
+            # RDS measurements
+            if RDS_MODE in variables:
+                # Locking for a while on rds mode
+                self._lock_mode(worker, RDS_MODE)
+                # Retrieving measurements
+                task = worker.enqueue(self.update_rds_variables)
+                
+            # Stereo mode measurements
+            if STEREO_MODE in variables:
+                self._lock_mode(worker, STEREO_MODE)
+                for var in variables[STEREO_MODE]:
+                    task = worker.enqueue(var.update)
+            
+            # Measuring mode measurements
+            if MEASURING_MODE in variables:
+                self._lock_mode(worker, MEASURING_MODE)
+                for var in variables[MEASURING_MODE]:
+                    task = worker.enqueue(var.update)                
+            
+            # Other measurements
+            if None in variables:
+                for var in variables[None]:
+                    task = worker.enqueue(var.update)
+        finally:
+            worker.release()
+            
+        return task
+        
+    def _lock_mode(self, worker, mode):
+        timeout = getattr(self, '%s_lock_time' % mode)
+        self.logger.debug('locking on %s mode for %s s' % (mode, timeout))
+        worker.enqueue('set_mode', mode)
+        return worker.enqueue_task(tasks.Sleep(timeout))
     
     def update(self, client):
         """Update all enabled variables probing the device associated to `client`"""
@@ -171,17 +214,15 @@ class Channel(object):
             variable.update(client)
 
     def update_rds_variables(self, client, **filters):
-#        filters['device_mode'] = RDS_MODE
-        self._update_rds_data(client)
+        filters['device_mode'] = RDS_MODE
+        filters.setdefault('enabled', True)
+        variables = self.filter_variables(**filters)
+        self._update_rds_data(client, variables)
         
-    def _update_rds_data(self, client):
+    def _update_rds_data(self, client, variables):
         for k, v in client.get_rds_data().items():
-            self._variables[k].set_value(v)
-    
-    def update_mode_variables(self, client, mode, **filters):
-        filters['device_mode'] = mode
-        for variable in self.filter_variables(**filters):
-            variable.update(client)
+            if k in variables:
+                variables[k].set_value(v)
         
 def config_section_factory(base=Channel):
     attrs = {
