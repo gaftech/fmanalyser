@@ -2,11 +2,12 @@
 
 class FmAnalyserException(Exception):
     """Base exception class for all fmanalyser specific exceptions"""
-    pass
 
 class DeviceNotFound(FmAnalyserException):
     """Raised when the system can't connect the device"""
-    pass
+
+class PortLocked(DeviceNotFound):
+    """Raised when serial port is already locked"""
 
 class MultipleDevicesFound(FmAnalyserException):
     """Raised when many devices matching a request are connected"""
@@ -43,3 +44,6 @@ class WorkerTimeout(Timeout):
     
 class TaskTimeout(Timeout):
     """Task specific timeout Exception"""
+    
+class AlreadyRegistered(FmAnalyserException):
+    """Raised when trying to register an already registered element"""

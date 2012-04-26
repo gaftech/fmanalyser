@@ -7,25 +7,22 @@ import time
 class Stoppable(object):
     
     def __init__(self, *args, **kwargs):
-        super(Stoppable, self).__init__(*args, **kwargs)
         self._stop = threading.Event()
-        self._lock = threading.Lock()
-    
     
     @property
     def stopped(self):
         return self._stop.is_set()
     
     def stop(self, *args, **kwargs):
-        with self._lock:
-            if self._stop.is_set():
+        self._stop.set()
+#        with self._lock:
+#            if self._stop.is_set():
 #                self.logger.warning('already stopping !')
-                raise RuntimeError('already stopping')
-            self._stop.set()
-            self._on_stop(*args, **kwargs)
+#            self._stop.set()
+#            self._on_stop(*args, **kwargs)
 
-    def _on_stop(self, *args, **kwargs):
-        pass
+#    def _on_stop(self, *args, **kwargs):
+#        pass
 
     def wait(self, timeout=None, blocking=True):
         if blocking:

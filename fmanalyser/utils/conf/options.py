@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-from fmanalyser.exceptions import InvalidOption
-from fmanalyser.utils.parse import parse_carrier_frequency,\
-    parse_subcarrier_frequency
+from ...exceptions import InvalidOption
+from ..datastructures import NOTSET
+from ..parse import parse_carrier_frequency, parse_subcarrier_frequency
 from copy import copy
-from fmanalyser.utils.datastructures import NOTSET
 
 class Option(object):
     
@@ -76,3 +75,4 @@ class CarrierFrequencyOption(Option):
 class SubCarrierFrequencyOption(Option):
     def clean(self, value):
         return parse_subcarrier_frequency(value)
+    

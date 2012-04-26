@@ -1,27 +1,25 @@
-from fmanalyser.utils.conf import ConfigSection
-import os.path
-from unittest2 import TestCase as BaseTestCase
-from .. import conf
+from ..client import P175
+from ..utils.conf.section import BaseConfigSection
+from ..utils.conf import options
 from nose.plugins.skip import SkipTest
-from fmanalyser.client import P175
+from unittest2 import TestCase as BaseTestCase
+import os.path
+
+class ConfigSection(BaseConfigSection):
+    basename = 'test'
+    live_tests = options.BooleanOption(default=True)
 
 class TestCase(BaseTestCase):
     
     @classmethod
     def setUpClass(cls):
-#        cls._orig_inifile = conf.CONF_FILE
-        cls._orig_inifiles = conf.Config.inifiles
+        from .. import conf
         test_inifile = os.path.join(conf.CONF_DIR, 'test.ini')
-        if os.path.exists(test_inifile):
-            conf.Config.inifiles = [test_inifile]
-        cls.global_conf = conf.Config() 
-        cls.conf = cls.global_conf['test']
+        config = conf.fmconfig
+        if config._files != [test_inifile] and os.path.exists(test_inifile):
+            config.set_file(test_inifile)
         
-    
-    @classmethod
-    def tearDownClass(cls):
-        conf.Config.inifiles = cls._orig_inifiles
-        
+        cls.conf = config['test']
 
     def assertIsFrequency(self, f):
         self.assertIsInstance(f, int)

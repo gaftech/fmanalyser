@@ -2,24 +2,50 @@
 
 from . import validators, descriptors, Variable
 from ..client import RDS_MODE, MEASURING_MODE, STEREO_MODE, tasks
-from ..exceptions import ValidationException, MissingOption
-from ..utils.conf import options, ConfigSection
-from ..utils.conf.declarative import DeclarativeOptionMetaclass
+from ..exceptions import ValidationException
+from ..utils.conf import options, OptionHolder, DeclarativeOptionMetaclass
 from ..utils.datastructures import NOTSET
+from ..utils.log import LoggableMixin
 import threading
 
 class ChannelBase(DeclarativeOptionMetaclass):
-    _metaname = '_descriptors'
-    _option_cls = descriptors.ValueDescriptor
+    
+    def __new__(cls, name, bases, attrs):
+                
+        new_attrs = attrs.copy()
+        
+        _descriptors = {}
+        
+        for k, v in attrs.items():
+            if isinstance(v, descriptors.ValueDescriptor):
+                _descriptors[k] = new_attrs.pop(k)
+                
+        new_class = super(ChannelBase, cls).__new__(
+            cls, name, bases, new_attrs)
+        
+        setattr(new_class, '_descriptors', _descriptors)
+        
+        for k, descriptor in _descriptors.items():
+            descriptor.contribute_to_class(new_class, k)
+                
+        return new_class
+        
+    
 
-class Channel(object):
+class Channel(LoggableMixin, OptionHolder):
+    
     __metaclass__ = ChannelBase
+    
+    config_section_name = 'channel'
     
     frequency = descriptors.CarrierFrequencyDescriptor(
         short_key = 'f',
         unit = 'MHz',
         validator = validators.factory(validators.StrictIntValidator,
-            ref = options.CarrierFrequencyOption())
+            enabled = True,
+            ref = options.CarrierFrequencyOption()),
+        device_mode = None,
+                                                       
     )
     
     rf = descriptors.ValueDescriptor(
@@ -51,28 +77,50 @@ class Channel(object):
     )
     
     rds_lock_time = options.FloatOption(default=5)
-    measure_lock_time = options.FloatOption(default=5)
+    mes_lock_time = options.FloatOption(default=5)
     stereo_lock_time = options.FloatOption(default=5)
     
     @classmethod
-    def iter_descriptors(cls):
-        return cls._descriptors.itervalues()
-    
-    @classmethod
-    def from_config(cls, config, name=None):
-        if name is None:
-            section = 'channel'
-        else:
-            section = 'channel:%s' % name
-        kwargs = config[section].values
-        return cls(**kwargs)
+    def get_class_descriptors(cls):
+        return cls._descriptors.values()
 
-    def __init__(self, **kwargs):
+    @classmethod
+    def config_section_factory(cls):
+        attrs = {}
+        for k, descriptor in cls._descriptors.items():
+            for option_key, _option in descriptor.validator._options.items():
+                option = _option.clone()
+                if option_key == 'ref':
+                    fullkey = k
+                else:
+                    fullkey = '%s_%s' % (k, option_key)
+                assert fullkey not in attrs
+                attrs[fullkey] = option
+        return super(Channel, cls).config_section_factory(**attrs)
+#    @classmethod
+#    def _config_section_attrs(cls, name='channel'):
+#        attrs = super(Channel, cls)._config_section_attrs(name)
+#        for k, descriptor in cls._descriptors.items():
+#            for option_key, _option in descriptor.validator._options.items():
+#                option = _option.clone()
+#                if option_key == 'ref':
+#                    fullkey = k
+#                else:
+#                    fullkey = '%s_%s' % (k, option_key)
+#                assert fullkey not in attrs
+#                attrs[fullkey] = option
+
+    def __init__(self, name=None, **kwargs):
+
         self._variables = {}
+        
+        self.name = name
+        
+        # Create variables from descriptors
         for k, descriptor in self._descriptors.items():
             Validator = descriptor.validator
             validator_kwargs = {}
-            for option_key, option in Validator._options.iteritems():
+            for option_key in Validator._options:
                 if option_key == 'ref':
                     fullkey = k
                 else:
@@ -84,18 +132,8 @@ class Channel(object):
                                           descriptor = descriptor,
                                           validator = validator)
         
-        # Set instance options
-        for k, option in self.__class__.__dict__.items():
-            if not isinstance(option, options.Option):
-                continue
-            if option.required and k not in kwargs:
-                raise MissingOption(k)
-            setattr(self, k, kwargs.pop(k, option.default))
-            
-            
-            
-        if len(kwargs):
-            raise ValueError("Unexpected options : %s" % ', '.join(kwargs))
+        # Handle options
+        super(Channel, self).__init__(**kwargs)
 
         self._lock = threading.Lock()
     
@@ -156,10 +194,15 @@ class Channel(object):
             raise ValidationException('No validator for this key : %s' % key) 
         validator.validate(value)
     
+    def set_frequency(self, freq):
+#        current = self._variables['frequency'].validator.ref
+        self._variables['frequency'].validator.ref = freq
+        
     def tune(self, client):
-        F = self._variables['frequency'].validator.ref
-        assert F is not NOTSET
-        client.tune(F)
+        freq = self._variables['frequency'].validator.ref
+#        assert F is not NOTSET
+        if freq is not NOTSET:
+            client.tune(freq)
     
     def enqueue_updates(self, worker):
         task = None
@@ -167,11 +210,16 @@ class Channel(object):
         worker.acquire()
         try:
             
-            # Tuning to the right frequency, if specified
-            if self.frequency is not NOTSET:
-                task = worker.enqueue(self.tune)
+#            # Tuning to the right frequency, if specified
+#            if self.frequency is not NOTSET:
+            task = worker.enqueue(self.tune)
                 
             variables = self.get_variables_by_mode(enabled=True)            
+
+            # None-mode Measurements
+            if None in variables:
+                for var in variables[None]:
+                    task = worker.enqueue(var.update)
                 
             # RDS measurements
             if RDS_MODE in variables:
@@ -191,11 +239,7 @@ class Channel(object):
                 self._lock_mode(worker, MEASURING_MODE)
                 for var in variables[MEASURING_MODE]:
                     task = worker.enqueue(var.update)                
-            
-            # Other measurements
-            if None in variables:
-                for var in variables[None]:
-                    task = worker.enqueue(var.update)
+
         finally:
             worker.release()
             
@@ -224,24 +268,10 @@ class Channel(object):
             if k in variables:
                 variables[k].set_value(v)
         
-def config_section_factory(base=Channel):
-    attrs = {
-        'section': 'channel',
-    }
-    for k, descriptor in base._descriptors.items():
-        for option_key, _option in descriptor.validator._options.items():
-            option = _option.clone()
-            if option_key == 'ref':
-                fullkey = k
-            else:
-                fullkey = '%s_%s' % (k, option_key)
-            assert fullkey not in attrs
-            attrs[fullkey] = option
+def create_config_channels(config):
+    channels = []
+    for name, channel_config in config.iter_subsection_items('channel'):
+        channels.append(Channel(name, **channel_config.values))
+    return channels
     
-    for k, _option in base.__dict__.items():
-        if not isinstance(_option, options.Option):
-            continue
-        assert k not in attrs
-        attrs[k] = _option.clone()
     
-    return  type('ChannelConfigSection', (ConfigSection,), attrs)

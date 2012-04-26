@@ -1,23 +1,27 @@
 # -*- coding: utf-8 -*-
 """A collection of classes that define a channel expected measurements.
 """
-from ..exceptions import ValidationException, MissingOption, UnexpectedOption
-from ..utils.conf import options
-from ..utils.conf.declarative import DeclarativeOptionMetaclass
+from ..exceptions import ValidationException
+from ..utils.conf import options, OptionHolder
+from ..utils.datastructures import NOTSET
 
-class Validator(object):
-    __metaclass__ = DeclarativeOptionMetaclass
+class Validator(OptionHolder):
 
     ref = options.Option(required=False)
-    enabled = options.BooleanOption(default=False)
+    enabled = options.BooleanOption(default=None)
     
     def __init__(self, **kwargs):
-        for k, option in self._options.iteritems():
-            if kwargs.get(k) is None and option.required:
-                raise MissingOption(k)
-            setattr(self, k, kwargs.pop(k, option.default))
-        if len(kwargs):
-            raise UnexpectedOption(', '.join(kwargs))
+        if kwargs.get('enabled') is None:
+            kwargs['enabled'] = kwargs.get('ref', NOTSET) is not NOTSET
+        
+        super(Validator, self).__init__(**kwargs)
+        
+#        for k, option in self._options.iteritems():
+#            if kwargs.get(k) is None and option.required:
+#                raise MissingOption(k)
+#            setattr(self, k, kwargs.pop(k, option.default))
+#        if len(kwargs):
+#            raise UnexpectedOption(', '.join(kwargs))
     
     def clean(self, raw_value, option_key='ref'):
         option = self._options[option_key]

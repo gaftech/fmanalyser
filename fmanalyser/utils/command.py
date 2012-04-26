@@ -4,7 +4,7 @@ import fmanalyser
 import logging
 import optparse
 import signal
-from fmanalyser.client.worker import Worker
+import threading
 
 class BaseCommand(LoggableMixin):
     
@@ -25,6 +25,7 @@ class BaseCommand(LoggableMixin):
     
     def __init__(self):
         self.name = self.__module__.split('.').pop()
+        self._stop = threading.Event()
     
     def __str__(self):
         return '%s version %s' % (self.name, self.version)
@@ -74,23 +75,14 @@ class BaseCommand(LoggableMixin):
         
         self.logger.info('running %s' % self)
         
-        self.worker = Worker()
-        try:
-            r = self.execute()
-        finally:
-            try:
-                if self.worker.exc_info:
-                    msg = 'exception occurred in worker thread'
-                    raise RuntimeError(msg)
-            finally:
-                if not self.worker.stopped:
-                    self.worker.stop()
+        r = self.execute()
         
         self.logger.debug('Bye !')
         return r
     
     def stop(self, signal, frame):
-        pass
+        self.logger.info('stopping on signal %s' % signal)
+        self._stop.set()
     
     def configure_logging(self):
         
@@ -114,5 +106,9 @@ class BaseCommand(LoggableMixin):
         
         root_logger.addHandler(stderr_handler)
     
-
+    
+    
+    
         
+
+

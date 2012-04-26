@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from . import view
-from ..client.tasks import ReadChannelValues
+from .. import client
 from ..models import channel
+from ..models.analyser import Analyser
 from ..models.signals import value_changed
 from ..utils.log import LoggableMixin
-from fmanalyser.client.tasks import WriteChannelValue, TuneUpCommand, \
-    TuneDownCommand
+from ..utils.parse import parse_carrier_frequency
 from pydispatch.dispatcher import liveReceivers, getAllReceivers, connect
 import sys
 import threading
@@ -14,20 +14,34 @@ import wx
 
 class Controller(LoggableMixin):
     
-    worker_sleep_time = 1
+    worker_sleep_time = 0.1
     
-    def __init__(self, client_worker):
-        self._client_worker = client_worker
+    def __init__(self):
+        self._client_worker = client.Worker(device=client.device.P175())
         self._thread = threading.Thread(target=self._worker)
         self._lock = threading.Lock()
         self._stop = threading.Event()
         
-    def run(self):
-        self._channel = channel.Channel()
-        self._client_worker.run()
-        self._thread.start()
+        self._channel = channel.Channel(
+            rds_lock_time = 0,
+            mes_lock_time = 0,
+            stereo_lock_time = 0,
+        )
+        self._analyser = Analyser(client_worker = self._client_worker, channels=[self._channel])
+        
         self._app = view.App(controller=self)
-        self._app.MainLoop()
+        
+    def run(self):
+        try:
+            self._thread.start()
+            self._client_worker.run()
+            self._app.MainLoop()
+        finally:
+            self._stop.set()
+            self._thread.join(1)
+            if self._thread.is_alive():
+                self.logger.warning("thread still running")
+            self._client_worker.stop()
     
     @property
     def channel(self):
@@ -40,7 +54,7 @@ class Controller(LoggableMixin):
             while not self._stop.is_set():
                 with self._lock:
                     self._update_channel_variables()
-                    self._client_worker.enqueue(ReadChannelValues, channel=self._channel)
+                    self._analyser.enqueue_updates().wait(blocking=False)
                 time.sleep(self.worker_sleep_time)
         except Exception:
             exc_info = sys.exc_info()
@@ -62,37 +76,38 @@ class Controller(LoggableMixin):
             connect(callback, value_changed, variable, False)
             self._update_channel_variables()
 
-    def set_channel_command(self, key, value):
-        variable = self._channel.get_variable(key)
-        variable.set_command(value)
-        self._client_worker.enqueue(WriteChannelValue, variable=variable)
+    def tune(self, frequency):
+        frequency = parse_carrier_frequency(frequency)
+        self._channel.set_frequency(frequency)
+#        self._channel.tune(client)
         
     def get_channel_value(self, key):
         return getattr(self._channel, key)
         
     def dirty_tune_up(self):
         # TODO : quick done, no event management !!!
-        self._client_worker.enqueue(TuneUpCommand)  
+        self._client_worker.enqueue('tune_up')  
         
     def dirty_tune_down(self):
-        self._client_worker.enqueue(TuneDownCommand)
+        self._client_worker.enqueue('tune_down')
     
     def tune_up(self):
-        with self._lock:
-            self._tune_up_down(up=True)
+        self._client_worker.enqueue(self._tune_up_down(up=True))
+#        with self._lock:
+#            self._tune_up_down(up=True)
 
     def tune_down(self):
-        with self._lock:
-            self._tune_up_down(up=False)
+        self._client_worker.enqueue(self._tune_up_down(up=False))
+#        with self._lock:
+#            self._tune_up_down(up=False)
         
-    def _tune_up_down(self, up):
-        variable = self.channel.get_variable('frequency')
-        current = variable.value
+    def _tune_up_down(self, client, up):
         step = 1000 # TODO: should be settable
         if not up:
             step = - step
-        variable.set_command(current + step, clean_value=False)
-        self._client_worker.enqueue(WriteChannelValue, variable=variable)
+        current = self._channel.frequency
+        self._channel.frequency = current + step
+        self._client_worker.enqueue('tune')
         
         
         

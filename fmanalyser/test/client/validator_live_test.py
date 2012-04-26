@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from .. import LiveTestCase
+from ...conf import fmconfig
 from ...exceptions import ValidationException
 from ...models.channel import Channel
 import time
@@ -8,10 +9,9 @@ import time
 class ValidatorTest(LiveTestCase):
     
     def test_channels(self):
-        channel_confs = self.global_conf.get_subsections('channel')
-        for conf in channel_confs:
+        for name, conf in fmconfig.iter_subsection_items('channel'):
             self.channel_conf = conf
-            self.channel = Channel(**conf.values)
+            self.channel = Channel(name, **conf.values)
             self._set_frequency()
             self.client.set_measuring_mode()
 

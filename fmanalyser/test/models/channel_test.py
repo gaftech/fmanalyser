@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from .. import TestCase
-from ...models.channel import Channel
 from ...conf import Config
+from ...models.channel import Channel, create_config_channels
 
 class ChannelConfigTest(TestCase):
     
@@ -16,7 +16,10 @@ rds_high = 1
 #        self.default_conf = Config()
         self.default_channel = Channel(frequency=88000)
         self.test_conf = Config(raw_data=self.ini)
-        self.test_channel = Channel.from_config(self.test_conf, 'testchannel')
+        channels = create_config_channels(config=self.test_conf)
+        self.assertEqual(len(channels), 1)
+        self.assertEqual(channels[0].name, 'testchannel')
+        self.test_channel = channels[0]
     
     def test_default_values(self):
         self.assertEqual(self.default_channel.get_validator('frequency').ref, 88000)

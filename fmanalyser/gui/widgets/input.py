@@ -19,16 +19,10 @@ class FrequencyTextCtrl(ChannelVariableListenerMixin, wx.TextCtrl):
         defaults.update(kwargs)
         super(FrequencyTextCtrl, self).__init__(*args, **defaults)
         self.Bind(wx.EVT_TEXT_ENTER, self.on_enter)
-    
-#    def update_value(self, value):
-#        if isinstance(value, int):
-#            value = value = float(value)/1000 
-#        display = str(value)
-#        self.SetValue(display)
 
     def on_enter(self, event):
         value = self.GetValue()
-        self.controller.set_channel_command(self.varkey, value)
+        self.controller.tune(value)
 
 class FrequencySpinButton(ControlledMixin, wx.SpinButton):
     

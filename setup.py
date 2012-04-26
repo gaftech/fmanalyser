@@ -30,5 +30,6 @@ setup(
     [console_scripts]
     fmlogger = fmanalyser.commands.fmlogger:main
     fmgui = fmanalyser.commands.fmgui:main
+    fmd = fmanalyser.commands.fmd:main
     """),
 )

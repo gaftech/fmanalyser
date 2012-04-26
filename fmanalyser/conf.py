@@ -1,22 +1,25 @@
 # -*- coding: utf-8 -*-
-from .utils.conf import ConfigSection, BaseConfig, options
-from .models import channel
+from . import test
+from .client.device import P175
+from .models.channel import Channel
+from .utils.conf.base import BaseConfig
+from .utils.plugin import BasePlugin
 import os.path
 
 CONF_DIR = os.path.expanduser('~/.fmanalyser/')
 CONF_FILE = os.path.join(CONF_DIR, 'conf.ini')
 
-class TestConfigSection(ConfigSection):
-    section = 'test'
-    live_tests = options.BooleanOption(default=True)
 
-ChannelConfigSection = channel.config_section_factory()
 
 class Config(BaseConfig):
     
-    inifiles = [CONF_FILE]
-    
-    sections = (
-        TestConfigSection,
-        ChannelConfigSection,
+    section_classes = (
+        P175.config_section_factory(),
+        Channel.config_section_factory(),
+        BasePlugin.config_section_factory(),
+        test.ConfigSection,
     )
+
+#: The global configuration access point
+fmconfig = Config(CONF_FILE)
+

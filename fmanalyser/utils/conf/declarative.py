@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 from . import options
-from copy import copy
 
 class DeclarativeOptionMetaclass(type):
     """Metaclass for option holders
     
     ..todo:: The original idea was to provide a DRY generic declarative metaclass
             but after a first try, I'm not sure it would be a great time saver.
-            To be reconsidered if we use more and more similar declarative mataclasses.
+            To be reconsidered if we use more and more similar declarative metaclasses.
     """
     
     
@@ -45,3 +44,5 @@ class DeclarativeOptionMetaclass(type):
                 option.contribute_to_class(new_class, k)
         
         return new_class
+    
+    

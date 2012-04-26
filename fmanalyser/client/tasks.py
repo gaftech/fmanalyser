@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from ..utils.log import LoggableMixin
 from ..utils.threads import Stoppable
+from fmanalyser.exceptions import Timeout
 
 class BaseTask(LoggableMixin, Stoppable):
     
@@ -41,7 +42,7 @@ class CallbackTask(BaseTask):
         if isinstance(self.callback, basestring):
             name = self.callback
         elif hasattr(self.callback, 'im_self'):
-            name = '%s.%s' % (self.callback.im_class.__name__,
+            name = '%s.%s' % (self.callback.im_self,
                               self.callback.__name__)
         
         return 'callback : %s' % name
@@ -59,45 +60,15 @@ class Sleep(BaseTask):
     def __init__(self, timeout):
         super(Sleep, self).__init__()
         self.timeout = timeout
-        
+    
+    def __str__(self):
+        return '%s s sleep' % self.timeout
+    
     def run(self, worker):
-        self.wait(timeout=self.timeout, blocking=False)
+#        self._stop.wait(timeout=self.timeout)
+        try:
+            self.wait(timeout=self.timeout, blocking=False)
+        except Timeout:
+            pass
 
 
-#class ReadChannelValues(BaseTask):
-#    
-#    def __init__(self, worker, channel):
-#        super(ReadChannelValues, self).__init__(worker)
-#        self.channel = channel
-#    
-#    def __str__(self):
-#        return 'Measurements : %s' % self.channel
-#    
-#    def run(self):
-#        self.channel.update(self.client)
-#
-#class Tune(BaseTask):
-#    
-#    def __init__(self, worker, channel):
-#        super(Tune, self).__init__(worker)
-#        self.channel = channel
-#    
-#    def run(self):
-#        self.channel.tune(self.client)
-#
-#class TuneUpCommand(BaseTask):
-#    # TODO : Integrate this in channel variable (or alike stuff) to manage events
-#    def run(self):
-#        self.client.tune_up()
-#    
-#class TuneDownCommand(BaseTask):
-#    
-#    def run(self):
-#        self.client.tune_down()
-#    
-#    
-#    
-#    
-#    
-#    
-#    

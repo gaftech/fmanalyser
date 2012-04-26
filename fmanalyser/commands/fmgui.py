@@ -6,7 +6,7 @@ import sys
 class Command(BaseCommand):
     
     def execute(self):
-        controller = Controller(client_worker=self.worker)
+        controller = Controller()
         controller.run()
 
 def main():

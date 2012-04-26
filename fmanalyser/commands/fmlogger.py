@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from ..client import MODE_CHOICES
+from ..client.device import P175
+from ..client.worker import Worker
+from ..models.analyser import Analyser
 from ..models.channel import Channel
-from ..models.signals import ValueChangeEvent
+from ..models.signals import value_changed
 from ..utils.command import BaseCommand
+from ..utils.datastructures import NOTSET
+from ..utils.parse import parse_carrier_frequency
 from optparse import OptionGroup, OptionConflictError
 import logging
 import sys
 import time
-from fmanalyser.models.signals import value_changed
-from fmanalyser.models.analyser import Analyser
-from fmanalyser.utils.parse import parse_carrier_frequency
-from fmanalyser.utils.datastructures import NOTSET
 
 class Command(BaseCommand):
     
@@ -66,24 +66,27 @@ class Command(BaseCommand):
             datalogger.addHandler(data_filehandler)
         self.datalogger = datalogger
     
-    def stop(self, signal, frame):
-        self.logger.info(u"stopping on signal %s..." % signal)
-        if hasattr(self, 'worker'):
-            self.worker.stop()
-    
     def execute(self):
         
         value_changed.connect(self._on_value_changed)
-        
         channel = self._make_channel()
-        analyser = Analyser(client_worker=self.worker, channels=[channel])
+        worker = Worker(device=P175())
+        try:
+            worker.run()
+            analyser = Analyser(client_worker=worker, channels=[channel])
+            while worker.is_alive():
+                task = analyser.enqueue_updates()
+                task.wait(blocking=False, timeout=2)
+                time.sleep(self.options.sleep)            
+        finally:
+            try:
+                if worker.exc_info:
+                    msg = 'exception occurred in worker thread'
+                    raise RuntimeError(msg)
+            finally:
+                if not worker.stopped:
+                    worker.stop()
         
-        self.worker.run()
-        
-        while self.worker.is_alive():
-            task = analyser.enqueue_updates()
-            task.wait(blocking=False, timeout=2)
-            time.sleep(self.options.sleep)
 
     def _make_channel(self):
         F = NOTSET

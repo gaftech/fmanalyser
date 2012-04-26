@@ -29,6 +29,7 @@ class ValueDescriptor(object):
         self.validator = validator
 
         # other private attributes 
+        self._holder = None
         self._key = None
         
     def __str__(self):
@@ -37,15 +38,24 @@ class ValueDescriptor(object):
             s = '%s (%s)' % (s, self.unit)
         return s
     
-    def _get_key(self):
-        assert self._key is not None
+    def contribute_to_class(self, holder_cls, name):
+        assert self._holder is None
+        self._holder = holder_cls
+        self._key = name
+    
+    @property
+    def key(self):
         return self._key
     
-    def _set_key(self, value):
-        assert self._key is None and value is not None
-        self._key = value
-    
-    key = property(_get_key, _set_key)
+#    def _get_key(self):
+#        assert self._key is not None
+#        return self._key
+#    
+#    def _set_key(self, value):
+#        assert self._key is None and value is not None
+#        self._key = value
+#    
+#    key = property(_get_key, _set_key)
     
     @property
     def verbose_name(self):
@@ -56,9 +66,6 @@ class ValueDescriptor(object):
     @property
     def device_mode(self):
         return self._device_mode
-    
-    def contribute_to_class(self, holder_cls, name):
-        self.key = name
     
     def read(self, client):
         return client.read(self.key)
