@@ -30,6 +30,9 @@ class BaseConfigSection(object):
     def __getitem__(self, key):
         return self.values[key]
     
+    def __str__(self):
+        return self.name
+    
     @property
     def name(self):
         if self._subname is None:
@@ -42,6 +45,9 @@ class BaseConfigSection(object):
             self._values = self._get_values()
         return self._values
     
+    def get_options(self):
+        return self._options
+        
     def _get_values(self):
         
         if self.required and self.name not in self._source:
@@ -55,7 +61,7 @@ class BaseConfigSection(object):
             raw_values.update(self._source[self.name])
         
         values = self._dict()
-        for k, option in self._options.iteritems():
+        for k, option in self.get_options().items():
             try:
                 raw = raw_values.pop(k)
             except KeyError:

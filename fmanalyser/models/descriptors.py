@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from . import validators
-from ..utils.datastructures import NOTSET
 from ..client import MEASURING_MODE
 
 class ValueDescriptor(object):
@@ -88,7 +87,7 @@ class CarrierFrequencyDescriptor(ValueDescriptor):
         super(CarrierFrequencyDescriptor, self).__init__(**kwargs)
     
     def render_value(self, value):
-        if not value is NOTSET:
+        if value:
             value = float(value) / self.factor
         return super(CarrierFrequencyDescriptor, self).render_value(value)
     

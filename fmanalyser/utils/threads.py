@@ -3,6 +3,7 @@ from ..exceptions import Timeout
 from .. import settings
 import threading
 import time
+from functools import wraps
 
 class Stoppable(object):
     
@@ -15,14 +16,6 @@ class Stoppable(object):
     
     def stop(self, *args, **kwargs):
         self._stop.set()
-#        with self._lock:
-#            if self._stop.is_set():
-#                self.logger.warning('already stopping !')
-#            self._stop.set()
-#            self._on_stop(*args, **kwargs)
-
-#    def _on_stop(self, *args, **kwargs):
-#        pass
 
     def wait(self, timeout=None, blocking=True):
         if blocking:
@@ -42,3 +35,34 @@ class Stoppable(object):
         self._stop.wait(timeout)
         if not self._stop.is_set():
             raise Timeout(self)
+
+class Lockable(object):
+    
+    def __init__(self, *args, **kwargs):
+        self._lock = threading.Lock()
+    
+    def acquire(self):
+        self._lock.acquire()
+        
+    def release(self):
+        self._lock.release()
+
+def locking():
+    """Method synchronization decorator.
+    
+    Intended to be used when class provides `acquire` and `release` methods.
+    """
+    def locked(func):
+        @wraps(func)
+        def inner(self, *args, **kwargs):
+            self.acquire()
+            try:
+                return func(self, *args, **kwargs)
+            finally:
+                self.release()
+        return inner
+    return locked
+
+
+
+

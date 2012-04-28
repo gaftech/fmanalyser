@@ -3,14 +3,29 @@
 class FmAnalyserException(Exception):
     """Base exception class for all fmanalyser specific exceptions"""
 
-class DeviceNotFound(FmAnalyserException):
+class DeviceError(FmAnalyserException):
+    """Base class for device probing or managing errors"""
+
+class DeviceNotFound(DeviceError):
     """Raised when the system can't connect the device"""
 
 class PortLocked(DeviceNotFound):
     """Raised when serial port is already locked"""
 
-class MultipleDevicesFound(FmAnalyserException):
+class MultipleDevicesFound(DeviceError):
     """Raised when many devices matching a request are connected"""
+
+class BadResponseFormat(DeviceError):
+    """Raised where an incorrectly formatted response is received"""
+
+class SerialError(DeviceError):
+    """:class:`serial.serialutil.SerialException` wrapper"""
+    def __init__(self, message=None, origin=None, *args, **kwargs):
+        self._original = origin
+        if message is None and origin is not None:
+            message = '%s: %s' % (origin.__class__.__name__, origin)
+        super(SerialError, self).__init__(message, *args, **kwargs)
+    
 
 class ConfigError(FmAnalyserException):
     """Global class for config related errors"""

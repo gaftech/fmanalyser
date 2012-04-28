@@ -6,3 +6,7 @@ nose
 unittest2
 # sphinx :  for generating documentation
 sphinx
+# redis plugin
+redis
+# snmp features
+pysnmp >= 4.2.2

@@ -9,7 +9,7 @@ def get_logger(name):
     return logging.getLogger(name)
 
 
-class LoggableMixin(object):
+class Loggable(object):
     
     logger_name = None
     

@@ -1,4 +1,3 @@
-from .misc import NOTSET
 try:
     from collections import OrderedDict
 except ImportError:

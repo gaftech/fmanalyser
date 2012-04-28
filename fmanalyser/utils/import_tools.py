@@ -12,6 +12,6 @@ def get_class(fullname):
         __import__(modname)
         mod = sys.modules[modname]
         cls = getattr(mod, classname)
-    except (ImportError, AttributeError), e:
+    except AttributeError, e:
         raise ImportError("can't find class %s: %s" % (fullname, e))
     return cls

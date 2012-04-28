@@ -1,34 +1,30 @@
 # -*- coding: utf-8 -*-
 from ...exceptions import InvalidOption
-from ..datastructures import NOTSET
 from ..parse import parse_carrier_frequency, parse_subcarrier_frequency
 from copy import copy
 
 class Option(object):
     
-    def __init__(self, default=NOTSET, required=False):
-#        self.name = name
+    def __init__(self, default=None, required=False):
         self.default = default
         self._required = required
         self._holder = None
+        self._attname = None
 
     def clone(self):
         clone = copy(self)
         clone._holder = None
+        clone._attname = None
         return clone 
-
-#    def __str__(self):
-#        return str(self.name)
 
     @property
     def required(self):
-        return self._required and self.default is NOTSET 
+        return self._required and self.default is None 
 
     def contribute_to_class(self, cls, name):
         assert self._holder is None
         self._holder = cls
-#        if self.name is None:
-#            self.name = name
+        self._attname = name
 
     def clean(self, value):
         """Returns the coerced value from a raw value"""
@@ -65,8 +61,14 @@ class ChoiceOption(Option):
 
     def clean(self, value):
         if value not in self.choices:
-            raise InvalidOption('%s not in [%s]' % (value, ', '.join(self.choices)))
+            raise InvalidOption('%s not in [%s]' % (value, ', '.join(str(c) for c in self.choices)))
         return value
+
+class IntChoiceOption(ChoiceOption):
+    def clean(self, value):
+        value = int(value)
+        return super(IntChoiceOption, self).clean(value)
+    
 
 class CarrierFrequencyOption(Option):
     def clean(self, value):

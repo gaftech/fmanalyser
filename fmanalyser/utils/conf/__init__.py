@@ -7,5 +7,7 @@ using the [section:subsection] syntax.
 
 
 """
-from .holder import OptionHolder
+from .base import BaseConfig
 from .declarative import DeclarativeOptionMetaclass
+from .holder import OptionHolder
+from .section import BaseConfigSection

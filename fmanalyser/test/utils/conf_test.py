@@ -5,13 +5,13 @@ from copy import copy
 from fmanalyser.utils.conf import options
 from fmanalyser.utils.conf.declarative import DeclarativeOptionMetaclass
 
-class OptionHolder(object):
+class TestOptionHolder(object):
     __metaclass__ = DeclarativeOptionMetaclass
     
     opt1 = options.BooleanOption()
     opt2 = options.FloatOption(required=True)
 
-class AnotherHolder(OptionHolder):
+class AnotherHolder(TestOptionHolder):
     
     opt2 = options.Option(required=False)
     opt3 = options.CarrierFrequencyOption()
@@ -25,7 +25,7 @@ class AnotherHolder(OptionHolder):
 class DeclarativeOptionsTest(TestCase):
     
     def test_option_count(self):
-        self.assertEqual(len(OptionHolder._options), 2)
+        self.assertEqual(len(TestOptionHolder._options), 2)
         self.assertEqual(len(AnotherHolder._options), 5)
     
     def test_inheritance_overriding(self):
@@ -46,7 +46,7 @@ class OptionTest(TestCase):
         
     def test_clone_owned_option(self):
         original = AnotherHolder._options['opt1']
-        self.assertIs(original._holder, OptionHolder)
+        self.assertIs(original._holder, TestOptionHolder)
         clone = original.clone()
         self.assertIsNone(clone._holder)
         

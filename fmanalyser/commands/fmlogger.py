@@ -6,7 +6,6 @@ from ..models.analyser import Analyser
 from ..models.channel import Channel
 from ..models.signals import value_changed
 from ..utils.command import BaseCommand
-from ..utils.datastructures import NOTSET
 from ..utils.parse import parse_carrier_frequency
 from optparse import OptionGroup, OptionConflictError
 import logging
@@ -89,10 +88,10 @@ class Command(BaseCommand):
         
 
     def _make_channel(self):
-        F = NOTSET
+        f = None
         if self.options.set_freq:
-            F = parse_carrier_frequency(self.options.set_freq)
-        channel = Channel(frequency=F)
+            f = parse_carrier_frequency(self.options.set_freq)
+        channel = Channel(frequency=f)
         for variable in channel.get_variables():
             enabled = getattr(self.options, variable.descriptor.key)
             variable.enabled = enabled

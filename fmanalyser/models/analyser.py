@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-from ..client import tasks, RDS_MODE, MEASURING_MODE, STEREO_MODE
-from ..utils.datastructures import NOTSET
-from ..utils.log import LoggableMixin
+from ..utils.log import Loggable
 
-class Analyser(LoggableMixin):
+class Analyser(Loggable):
     """Represents a physical device, triggers and stores its measurements"""
 
     def __init__(self, client_worker, channels=()):

@@ -4,8 +4,7 @@ from . import validators, descriptors, Variable
 from ..client import RDS_MODE, MEASURING_MODE, STEREO_MODE, tasks
 from ..exceptions import ValidationException
 from ..utils.conf import options, OptionHolder, DeclarativeOptionMetaclass
-from ..utils.datastructures import NOTSET
-from ..utils.log import LoggableMixin
+from ..utils.log import Loggable
 import threading
 
 class ChannelBase(DeclarativeOptionMetaclass):
@@ -30,13 +29,116 @@ class ChannelBase(DeclarativeOptionMetaclass):
                 
         return new_class
         
+class BaseChannel(Loggable, OptionHolder):
+    """Base class for channel.
     
+    At the moment, the only reason to have a separate base class for `Channel` is testing purpose
+    
+    """
 
-class Channel(LoggableMixin, OptionHolder):
-    
     __metaclass__ = ChannelBase
     
     config_section_name = 'channel'
+
+    @classmethod
+    def get_class_descriptors(cls):
+        return cls._descriptors.values()
+
+    @classmethod
+    def config_section_factory(cls):
+        attrs = {}
+        for k, descriptor in cls._descriptors.items():
+            for option_key, _option in descriptor.validator._options.items():
+                option = _option.clone()
+                if option_key == 'ref':
+                    fullkey = k
+                else:
+                    fullkey = '%s_%s' % (k, option_key)
+                assert fullkey not in attrs
+                attrs[fullkey] = option
+        return super(BaseChannel, cls).config_section_factory(**attrs)
+
+    def __init__(self, name=None, **kwargs):
+
+        self._variables = {}
+        
+        self.name = name
+        
+        # Create variables from descriptors
+        for k, descriptor in self._descriptors.items():
+            Validator = descriptor.validator
+            validator_kwargs = {}
+            for option_key in Validator._options:
+                if option_key == 'ref':
+                    fullkey = k
+                else:
+                    fullkey = '%s_%s' % (k, option_key)
+                if fullkey in kwargs:
+                    validator_kwargs[option_key] = kwargs.pop(fullkey)
+            validator = Validator(**validator_kwargs)
+            self._variables[k] = Variable(owner = self,
+                                          descriptor = descriptor,
+                                          validator = validator)
+        
+        # Handle options
+        super(BaseChannel, self).__init__(**kwargs)
+
+        self._lock = threading.Lock()
+    
+    def __getattr__(self, name):
+        if name not in self._variables:
+            raise AttributeError(name)
+        return self._variables[name].get_value()
+    
+    def __setattr__(self, name, value):
+        if name != '_variables' and name in self._variables:
+            self._variables[name].set_value(value)
+        else:
+            super(BaseChannel, self).__setattr__(name, value)
+
+    def iter_variables(self):
+        return self._variables.itervalues()
+    
+    def get_variables(self):
+        return self._variables.values()
+    
+    def filter_variables(self, enabled=None, device_mode=None):
+        variables = []
+        for var in self._variables.values():
+            if enabled is not None and var.enabled != enabled:
+                continue
+            if device_mode is not None and var.device_mode != device_mode:
+                continue
+            variables.append(var)
+        return variables
+    
+    def get_variable(self, key):
+        return self._variables[key]
+    
+    def get_variables_by_mode(self, **filters):
+        variables = {}
+        for variable in self.filter_variables(**filters):
+            mode = variable.device_mode
+            variables.setdefault(mode, []).append(variable)
+        return variables
+    
+    def get_validator(self, key):
+        return self._variables[key].validator
+    
+    def is_valid(self, key, value):
+        try:
+            self.validate(key, value)
+        except ValidationException:
+            return False
+        return True
+    
+    def validate(self, key, value):
+        validator = self.get_validator(key)
+        if validator is None:
+            raise ValidationException('No validator for this key : %s' % key) 
+        validator.validate(value)
+
+class Channel(BaseChannel):
     
     frequency = descriptors.CarrierFrequencyDescriptor(
         short_key = 'f',
@@ -80,119 +182,10 @@ class Channel(LoggableMixin, OptionHolder):
     mes_lock_time = options.FloatOption(default=5)
     stereo_lock_time = options.FloatOption(default=5)
     
-    @classmethod
-    def get_class_descriptors(cls):
-        return cls._descriptors.values()
-
-    @classmethod
-    def config_section_factory(cls):
-        attrs = {}
-        for k, descriptor in cls._descriptors.items():
-            for option_key, _option in descriptor.validator._options.items():
-                option = _option.clone()
-                if option_key == 'ref':
-                    fullkey = k
-                else:
-                    fullkey = '%s_%s' % (k, option_key)
-                assert fullkey not in attrs
-                attrs[fullkey] = option
-        return super(Channel, cls).config_section_factory(**attrs)
-#    @classmethod
-#    def _config_section_attrs(cls, name='channel'):
-#        attrs = super(Channel, cls)._config_section_attrs(name)
-#        for k, descriptor in cls._descriptors.items():
-#            for option_key, _option in descriptor.validator._options.items():
-#                option = _option.clone()
-#                if option_key == 'ref':
-#                    fullkey = k
-#                else:
-#                    fullkey = '%s_%s' % (k, option_key)
-#                assert fullkey not in attrs
-#                attrs[fullkey] = option
-
-    def __init__(self, name=None, **kwargs):
-
-        self._variables = {}
-        
-        self.name = name
-        
-        # Create variables from descriptors
-        for k, descriptor in self._descriptors.items():
-            Validator = descriptor.validator
-            validator_kwargs = {}
-            for option_key in Validator._options:
-                if option_key == 'ref':
-                    fullkey = k
-                else:
-                    fullkey = '%s_%s' % (k, option_key)
-                if fullkey in kwargs:
-                    validator_kwargs[option_key] = kwargs.pop(fullkey)
-            validator = Validator(**validator_kwargs)
-            self._variables[k] = Variable(owner = self,
-                                          descriptor = descriptor,
-                                          validator = validator)
-        
-        # Handle options
-        super(Channel, self).__init__(**kwargs)
-
-        self._lock = threading.Lock()
-    
-    def __getattr__(self, name):
-        if name not in self._variables:
-            raise AttributeError(name)
-        return self._variables[name].get_value()
-    
-    def __setattr__(self, name, value):
-        if name != '_variables' and name in self._variables:
-            self._variables[name].set_value(value)
-        else:
-            super(Channel, self).__setattr__(name, value)
-        
-    
     def __str__(self):
         return self._variables['frequency'].render()
     
-    def iter_variables(self):
-        return self._variables.itervalues()
-    
-    def get_variables(self):
-        return self._variables.values()
-    
-    def filter_variables(self, enabled=None, device_mode=None):
-        variables = []
-        for var in self._variables.values():
-            if enabled is not None and var.enabled != enabled:
-                continue
-            if device_mode is not None and var.device_mode != device_mode:
-                continue
-            variables.append(var)
-        return variables
-    
-    def get_variable(self, key):
-        return self._variables[key]
-    
-    def get_variables_by_mode(self, **filters):
-        variables = {}
-        for variable in self.filter_variables(**filters):
-            mode = variable.device_mode
-            variables.setdefault(mode, []).append(variable)
-        return variables
-    
-    def get_validator(self, key):
-        return self._variables[key].validator
-    
-    def is_valid(self, key, value):
-        try:
-            self.validate(key, value)
-        except ValidationException:
-            return False
-        return True
-    
-    def validate(self, key, value):
-        validator = self.get_validator(key)
-        if validator is None:
-            raise ValidationException('No validator for this key : %s' % key) 
-        validator.validate(value)
+
     
     def set_frequency(self, freq):
 #        current = self._variables['frequency'].validator.ref
@@ -200,8 +193,7 @@ class Channel(LoggableMixin, OptionHolder):
         
     def tune(self, client):
         freq = self._variables['frequency'].validator.ref
-#        assert F is not NOTSET
-        if freq is not NOTSET:
+        if freq:
             client.tune(freq)
     
     def enqueue_updates(self, worker):
@@ -211,7 +203,6 @@ class Channel(LoggableMixin, OptionHolder):
         try:
             
 #            # Tuning to the right frequency, if specified
-#            if self.frequency is not NOTSET:
             task = worker.enqueue(self.tune)
                 
             variables = self.get_variables_by_mode(enabled=True)            
@@ -247,7 +238,7 @@ class Channel(LoggableMixin, OptionHolder):
         
     def _lock_mode(self, worker, mode):
         timeout = getattr(self, '%s_lock_time' % mode)
-        self.logger.debug('locking on %s mode for %s s' % (mode, timeout))
+        self.logger.debug('enqueueing %s mode lock for %s s' % (mode, timeout))
         worker.enqueue('set_mode', mode)
         return worker.enqueue_task(tasks.Sleep(timeout))
     
@@ -269,6 +260,11 @@ class Channel(LoggableMixin, OptionHolder):
                 variables[k].set_value(v)
         
 def create_config_channels(config):
+    """Creates the :class:`Channel` instances described by the `config` object.
+    
+    :param config: a :class:`fmanalyser.utils.conf.BaseConfig` instance
+    :return list: created channels
+    """
     channels = []
     for name, channel_config in config.iter_subsection_items('channel'):
         channels.append(Channel(name, **channel_config.values))

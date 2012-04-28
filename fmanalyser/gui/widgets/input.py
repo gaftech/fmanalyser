@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import wx
 from .mixins import ChannelVariableListenerMixin
-from ...utils.log import LoggableMixin
-from fmanalyser.utils.datastructures import NOTSET
 from fmanalyser.gui.widgets.mixins import ControlledMixin
+import wx
 
 
 class FrequencyTextCtrl(ChannelVariableListenerMixin, wx.TextCtrl):

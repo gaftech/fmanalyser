@@ -2,20 +2,24 @@
 
 from ..exceptions import DeviceNotFound, MultipleDevicesFound, PortLocked
 from ..utils.conf import options, OptionHolder
+from ..utils.log import Loggable
 from ..utils.parse import parse_carrier_frequency, parse_subcarrier_frequency, \
     parse_int, parse_histogram_data, parse, parse_float
+from ..utils.threads import Lockable, locking
 from copy import copy
-from fmanalyser.utils.log import LoggableMixin
 import fcntl
 import serial
+import threading
 import time
+from fmanalyser.exceptions import BadResponseFormat, SerialError
+from serial.serialutil import SerialException
 
 MEASURING_MODE = 'mes'
 STEREO_MODE = 'stereo'
 RDS_MODE = 'rds'
 MODE_CHOICES = (MEASURING_MODE, RDS_MODE, STEREO_MODE)
 
-class P175(LoggableMixin, OptionHolder):
+class P175(Loggable, OptionHolder):
     
     config_section_name = 'device'
     
@@ -26,11 +30,6 @@ class P175(LoggableMixin, OptionHolder):
         'baudrate': 19200,
         'timeout': 1,
     }
-    
-    def __init__(self, *args, **kwargs):
-        super(P175, self).__init__(*args, **kwargs)
-        self._socket = None
-        self._reset_cache()
     
     @classmethod
     def _autodetect(cls):
@@ -48,6 +47,16 @@ class P175(LoggableMixin, OptionHolder):
             raise MultipleDevicesFound("Many P175 connected to the system")
         device = results[0]
         return device.device_node
+    
+    
+    def __init__(self, *args, **kwargs):
+        super(P175, self).__init__(*args, **kwargs)
+        self._socket = None
+        self._reset_cache()
+        self._lock = threading.Lock()
+    
+    def _reset_cache(self):
+        self._mode = None
     
     @property
     def socket(self):
@@ -68,16 +77,13 @@ class P175(LoggableMixin, OptionHolder):
             opts['port'] = self._autodetect()
         socket = serial.Serial(**opts)
 
-        self._acquire_lock(socket)
+        self._lock_device(socket)
         
         self._socket = socket
         
-        self.logger.debug('%s opened' % self._socket)
+        self.logger.info('device opened on port %s' % self._socket.port)
     
-    def _reset_cache(self):
-        self._mode = None
-    
-    def _acquire_lock(self, socket, timeout=1):
+    def _lock_device(self, socket, timeout=1):
         limit = time.time() + timeout
         while time.time() < limit:
             try:
@@ -85,16 +91,32 @@ class P175(LoggableMixin, OptionHolder):
             except IOError:
                 pass
         raise PortLocked('serial port seems to be locked')
-        
     
     def close(self):
         self._reset_cache()
         if self._socket is None:
             self.logger.debug('serial port already closed')
         else:
+            self.logger.debug('closing serial port %s...' % self._socket)
             fcntl.flock(self._socket, fcntl.LOCK_UN)
             self._socket.close()
-            self.logger.debug('%s closed' % self._socket)
+            self._socket = None
+            self.logger.debug('serial port closed')
+        self.logger.info('device released')
+    
+    @property
+    def online(self):
+        return self._socket is not None and self._socket.isOpen()
+    
+    def _probe_line(self, command, index=1, eof='\r\n', size=None, formatter=lambda x: x):
+        lines = self._probe_lines(command, eof, size)
+        # Extracting and formatting response
+        try:
+            return formatter(lines[index])
+        except Exception, e:
+            msg = 'error while formatting response: %s:%s' % (e.__class__.__name__, e)
+            self.logger.warning(msg, exc_info=True)
+            raise BadResponseFormat(msg)
     
     def _probe_lines(self, command, eof='\r\n', size=None):
         self._write(command)
@@ -102,17 +124,23 @@ class P175(LoggableMixin, OptionHolder):
     
     def _write(self, command):
         self.logger.debug('writing: %s' % command)
-        self.socket.write(command)
+        try:
+            self.socket.write(command)
+        except SerialException, e:
+            raise SerialError(origin=e)
     
     def _read_lines(self, eof='\r\n', size=None):
         lines = []
-        for line in self.socket:
-            lines.append(line)
-            if size is None:
-                if line == eof:
+        try:
+            for line in self.socket:
+                lines.append(line)
+                if size is None:
+                    if line == eof:
+                        break
+                elif len(lines) >= size:
                     break
-            elif len(lines) >= size:
-                break
+        except SerialException, e:
+            raise SerialError(origin=e)
         self.logger.debug('response : %s' % ' '.join(l.strip() for l in lines))
         return lines
 
@@ -134,11 +162,9 @@ class P175(LoggableMixin, OptionHolder):
             return method(value)
         raise ValueError("Unknown writable value for this key : %s" % key)
     
-    
     def get_frequency(self):
         """Returns the current frequency, an an integer, in kHz"""
-        lines = self._probe_lines('?F')
-        return parse_carrier_frequency(lines[1])
+        return self._probe_line('?F', formatter=parse_carrier_frequency)
     
     def set_frequency(self, f, force=False):
         """Sets the device frequency to f (kHz)
@@ -160,6 +186,53 @@ class P175(LoggableMixin, OptionHolder):
     
     def tune_down(self):
         self._write('*-')
+    
+    def get_rf(self):
+        return self._probe_line('?U', formatter=parse_float)
+    
+    def get_quality(self):
+        return self._probe_line('?Q', formatter=parse)
+    
+    def get_rds(self):
+        return self._probe_line('?R', formatter=parse_subcarrier_frequency)
+    
+    def get_pilot(self):
+        return self._probe_line('?L', formatter=parse_subcarrier_frequency)
+    
+    def get_rds_data(self):
+        # TODO: implement me !
+        return {}
+        
+    def get_basic_data(self):
+        # It seems that working on line count and line numbers is not reliable
+        raise NotImplementedError('Work to do !')
+        lines = self._probe_lines('?B', size=221)
+        data = {
+            'frequency': parse_carrier_frequency(lines[1]),
+            'quality': parse_int(lines[4]),
+            'pilot': parse_subcarrier_frequency(lines[7]),
+            'rds': parse_subcarrier_frequency(lines[10]),
+            'rds_phase': parse_int(lines[13]),
+            'mod_power': parse_float(lines[16]),
+            'histo': parse_histogram_data(lines[19:141]),
+            'PS': parse(lines[143]),
+            'PI': parse(lines[145]),
+            'PTY': parse_int(lines[149]),
+            'TP': parse_int(lines[152]),
+            'TA': parse_int(lines[155]),
+            'MS': parse_int(lines[158]),
+            'DI': parse_int(lines[161]),
+            'RT': parse(lines[164]),
+            'CT': parse(lines[167]),
+            'LTO': parse(lines[170]),
+            'AF': parse(lines[173]),
+            'ECC': parse(lines[175]),
+            'LIC': parse(lines[178]),
+            'PIN': parse(lines[181]),
+            'PTYN': parse(lines[184]),
+            'EON': None, # TODO: seems to be empty !
+        }
+        return data
         
     def activate_modulation_power_sending(self):
         self._write('*P')
@@ -253,49 +326,4 @@ class P175(LoggableMixin, OptionHolder):
     def set_lcd_page(self, n):
         self._write('*%s' % n)
         
-    def get_basic_data(self):
-        # It seems that working on line count and line numbers is not reliable
-        raise NotImplementedError('Work to do !')
-        lines = self._probe_lines('?B', size=221)
-        data = {
-            'frequency': parse_carrier_frequency(lines[1]),
-            'quality': parse_int(lines[4]),
-            'pilot': parse_subcarrier_frequency(lines[7]),
-            'rds': parse_subcarrier_frequency(lines[10]),
-            'rds_phase': parse_int(lines[13]),
-            'mod_power': parse_float(lines[16]),
-            'histo': parse_histogram_data(lines[19:141]),
-            'PS': parse(lines[143]),
-            'PI': parse(lines[145]),
-            'PTY': parse_int(lines[149]),
-            'TP': parse_int(lines[152]),
-            'TA': parse_int(lines[155]),
-            'MS': parse_int(lines[158]),
-            'DI': parse_int(lines[161]),
-            'RT': parse(lines[164]),
-            'CT': parse(lines[167]),
-            'LTO': parse(lines[170]),
-            'AF': parse(lines[173]),
-            'ECC': parse(lines[175]),
-            'LIC': parse(lines[178]),
-            'PIN': parse(lines[181]),
-            'PTYN': parse(lines[184]),
-            'EON': None, # TODO: seems to be empty !
-        }
-        return data
-    
-    def get_rf(self):
-        return parse_float(self._probe_lines('?U')[1])
-    
-    def get_quality(self):
-        return parse(self._probe_lines('?Q')[1])
-    
-    def get_rds(self):
-        return parse_subcarrier_frequency(self._probe_lines('?R')[1])
-    
-    def get_pilot(self):
-        return parse_subcarrier_frequency(self._probe_lines('?L')[1])
-    
-    def get_rds_data(self):
-        # TODO: implement me !
-        return {}
+

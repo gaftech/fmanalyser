@@ -28,8 +28,9 @@ setup(
     ),
     entry_points = dedent("""
     [console_scripts]
+    fmd = fmanalyser.commands.fmd:main
     fmlogger = fmanalyser.commands.fmlogger:main
     fmgui = fmanalyser.commands.fmgui:main
-    fmd = fmanalyser.commands.fmd:main
+    fmmibgen = fmanalyser.plugins.snmp.mibgen:generate
     """),
 )

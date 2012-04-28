@@ -10,7 +10,7 @@ class OptionHolder(object):
     config_section_name = None
     
     @classmethod
-    def config_section_factory(cls, **attrs):
+    def config_section_factory(cls, config_class=BaseConfigSection, **attrs):
         assert cls.config_section_name is not None
         attrs['basename'] = cls.config_section_name
         for k, _option in cls._options.items():
@@ -19,7 +19,7 @@ class OptionHolder(object):
         
         classname = '%sConfigSection' % cls.config_section_name.title()
         
-        return  type(classname, (BaseConfigSection,), attrs)
+        return  type(classname, (config_class,), attrs)
     
     def __init__(self, **kwargs):
         
@@ -27,6 +27,7 @@ class OptionHolder(object):
         for k, option in self._options.items():
             if option.required and k not in kwargs:
                 raise MissingOption(k)
+            assert not hasattr(self, k)
             setattr(self, k, kwargs.pop(k, option.default))
             
         if len(kwargs):

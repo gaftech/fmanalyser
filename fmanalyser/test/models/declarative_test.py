@@ -2,10 +2,9 @@
 """Tests our black magic stuffs about declarative option and validators metaclasses"""
 from .. import TestCase
 from ...models import validators
-from ...models.channel import Channel
+from ...models.channel import BaseChannel
 from ...models.descriptors import ValueDescriptor
 from ...utils.conf import options
-from ...models.channel import ChannelBase
 
 class Validator1(validators.Validator):
     
@@ -13,9 +12,7 @@ class Validator1(validators.Validator):
     opt2 = options.BooleanOption(default=False)
     opt3 = options.IntOption(default=1)
 
-class Channel(object):
-    
-    __metaclass__ = ChannelBase
+class TestChannelClass(BaseChannel):
     
     value1 = ValueDescriptor(
         validator = Validator1,
@@ -29,7 +26,7 @@ class ChannelConfigTest(TestCase):
     
     def setUp(self):
         super(ChannelConfigTest, self).setUp()
-        self.ChannelConfig = Channel.config_section_factory()
+        self.ChannelConfig = TestChannelClass.config_section_factory()
     
     def test_default_values(self):
         self.assertEqual(self.ChannelConfig._options['value1_opt3'].default, 1)

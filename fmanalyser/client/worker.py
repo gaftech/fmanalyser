@@ -2,16 +2,19 @@
 from . import tasks
 from .. import settings
 from ..exceptions import QueueFull
-from ..utils.log import LoggableMixin
+from ..utils.log import Loggable
 from ..utils.threads import Stoppable
 import collections
 import sys
 import threading
+from serial.serialutil import SerialException
+from fmanalyser.exceptions import DeviceNotFound, DeviceError
 
-class Worker(LoggableMixin, Stoppable):
+class Worker(Loggable, Stoppable):
     
     empty_queue_timeout = settings.WATCHER_SLEEP_TIME
     max_queue_size = 10
+    device_error_sleep = 1
     
     def __init__(self, device):
         super(Worker, self).__init__()
@@ -25,16 +28,22 @@ class Worker(LoggableMixin, Stoppable):
     
     def _worker(self):
         try:
-            self.logger.debug('start working...')
+            self.logger.info('acquiring data from device %s' % self._client)
             while not self._stop.is_set():
-                if len(self._queue):
-                    with self._lock:
-                        task = self._queue.popleft()
-                        self._current_task = task
-                    task.perform(worker=self)
-                    self._current_task = None
-                else:
+                if self._current_task is None and len(self._queue):
+                    self._current_task = self._queue.popleft()
+                if self._current_task is None:
                     self._stop.wait(self.empty_queue_timeout)
+                else:
+                    try:
+                        self._current_task.perform(worker=self)
+                        self._current_task = None
+                    except DeviceError, e:
+                        self.logger.info('device error while performing task %s' % self._current_task)
+                        self.logger.warning('device error: %s: %s' % (e.__class__.__name__, e))
+                        self._client.close()
+                        self.logger.info('retrying device probe in %s s' % self.device_error_sleep)
+                        self._stop.wait(self.device_error_sleep)
         except Exception:
             self.exc_info = sys.exc_info()
             self.logger.critical('thread exits on exception', exc_info=True)
@@ -43,7 +52,7 @@ class Worker(LoggableMixin, Stoppable):
                 self.logger.warning('stopping unperformed task  : %s' % self._current_task)
                 self._current_task.stop()
             self._client.close()
-            self.logger.debug('end of thread')        
+            self.logger.info('device released : %s' % self._client)
         
     def is_alive(self):
         return self._thread.is_alive()
@@ -63,7 +72,7 @@ class Worker(LoggableMixin, Stoppable):
         self.logger.debug('stopping worker...')
         super(Worker, self).stop()
         if self._current_task is not None and not self._current_task.stopped:
-            self.logger.warning('stopping unperformed task  : %s' % self._current_task)
+            self.logger.debug('stopping current task  : %s' % self._current_task)
             self._current_task.stop()
         for task in self._queue:
             if not task.stopped:

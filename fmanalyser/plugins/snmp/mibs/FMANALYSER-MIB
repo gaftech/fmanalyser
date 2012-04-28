@@ -1,0 +1,39 @@
+FMANALYSER-MIB DEFINITIONS ::= BEGIN
+
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, enterprises 
+        FROM SNMPv2-SMI;
+
+fmanalyser MODULE-IDENTITY
+    LAST-UPDATED    "1204272137Z"
+    ORGANIZATION    "Gaftech"
+    CONTACT-INFO    "gabriel@gaftech.fr"
+    DESCRIPTION     "The MIB module for fmanalyser snmp plugin"
+    REVISION        "1204272137Z"
+    DESCRIPTION     "auto-generated revision with fmanalyser 0.1.dev"
+    ::= { gaftech 1 }
+
+gaftech OBJECT IDENTIFIER ::= { enterprises 999999 }
+
+software OBJECT IDENTIFIER ::= { fmanalyser 1 }
+
+softVersion OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION   "fmanalyser software version"
+    ::= { software 0 }
+
+
+device OBJECT IDENTIFIER ::= { fmanalyser 2 }
+
+online OBJECT-TYPE
+    SYNTAX        INTEGER(0..1)
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "The device online/offline status."
+    ::= { device 1 }
+
+END

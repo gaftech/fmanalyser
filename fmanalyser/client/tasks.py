@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from ..utils.log import LoggableMixin
+from ..utils.log import Loggable
 from ..utils.threads import Stoppable
 from fmanalyser.exceptions import Timeout
 
-class BaseTask(LoggableMixin, Stoppable):
+class BaseTask(Loggable, Stoppable):
     
     def __init__(self):
         super(BaseTask, self).__init__()

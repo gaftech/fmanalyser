@@ -4,7 +4,7 @@ from .. import client
 from ..models import channel
 from ..models.analyser import Analyser
 from ..models.signals import value_changed
-from ..utils.log import LoggableMixin
+from ..utils.log import Loggable
 from ..utils.parse import parse_carrier_frequency
 from pydispatch.dispatcher import liveReceivers, getAllReceivers, connect
 import sys
@@ -12,7 +12,7 @@ import threading
 import time
 import wx
 
-class Controller(LoggableMixin):
+class Controller(Loggable):
     
     worker_sleep_time = 0.1
     

@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-from fmanalyser.utils.log import LoggableMixin
+from ..utils.log import Loggable
+from ..conf import fmconfig, VERBOSITY
 import fmanalyser
 import logging
 import optparse
 import signal
 import threading
 
-class BaseCommand(LoggableMixin):
+class BaseCommand(Loggable):
     
     # Parser kwargs and options
     parser_cls = optparse.OptionParser
@@ -61,8 +62,7 @@ class BaseCommand(LoggableMixin):
 #        return 'fmanalyser.command.%s' % self.name
     
     def run(self, argv=None):
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            signal.signal(sig, self.stop)
+        self.connect_signals()
         
         try:
             import setproctitle
@@ -80,23 +80,31 @@ class BaseCommand(LoggableMixin):
         self.logger.debug('Bye !')
         return r
     
+    def connect_signals(self):
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            signal.signal(sig, self.stop)
+    
     def stop(self, signal, frame):
         self.logger.info('stopping on signal %s' % signal)
         self._stop.set()
     
     def configure_logging(self):
         
-        root_logger = logging.getLogger('')
-        
         verbosity = self.options.verbosity
+        if verbosity is None:
+            verbosity = fmconfig['global']['verbosity']
+        else:
+            fmconfig['global']['verbosity'] = verbosity
+        
         level = logging.WARNING
-        if verbosity < 0:
+        if verbosity <= VERBOSITY.CRITICAL:
             level = logging.CRITICAL
-        elif verbosity == 1:
+        elif verbosity == VERBOSITY.INFO:
             level = logging.INFO
-        elif verbosity > 1:
+        elif verbosity >= VERBOSITY.DEBUG:
             level = logging.DEBUG
         
+        root_logger = logging.getLogger('')
         root_logger.setLevel(level)
         
         stderr_handler = logging.StreamHandler()

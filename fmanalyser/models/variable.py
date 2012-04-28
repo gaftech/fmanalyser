@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from . import validators
-from ..utils.datastructures import NOTSET
-from ..utils.log import LoggableMixin
+from ..utils.log import Loggable
 from .signals import value_changed
 import threading
 
-class Variable(LoggableMixin, object):
+class Variable(Loggable, object):
+    """Holder of channel measurement"""
     
     def __init__(self, owner, descriptor, validator):
         
@@ -15,13 +15,15 @@ class Variable(LoggableMixin, object):
         self._descriptor = descriptor
         self._validator = validator
         
-        self._value = NOTSET
-        self._command = NOTSET
+        self._value = None
         self._lock = threading.Lock()
 
     def __str__(self):
-        return '%s: %s' % (self._descriptor._key,
-                           self.render())
+        return '%s: %s' % (self.key, self.render())
+
+    @property
+    def channel(self):
+        return self._owner
 
     @property
     def descriptor(self):
@@ -30,6 +32,10 @@ class Variable(LoggableMixin, object):
     @property
     def validator(self):
         return self._validator
+
+    @property
+    def key(self):
+        return self._descriptor.key
 
     @property
     def value(self):

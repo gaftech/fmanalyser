@@ -1,0 +1,28 @@
+# -*- coding: utf-8 -*-
+from ..utils.plugin import BasePlugin
+import redis
+from ..models.signals import value_changed
+from ..utils.conf import options
+
+class RedisPlugin(BasePlugin):
+    
+    host = options.Option(default='localhost')
+    port = options.IntOption(default=6379)
+    db = options.IntOption(default=0)
+    expire = options.IntOption(default=30)
+    
+    def start(self):
+        self.client = redis.Redis(self.host, self.port, self.db)
+        self._connect()
+    
+    def _connect(self):
+        value_changed.connect(self.on_value_changed)
+        
+    def on_value_changed(self, signal, sender, event):
+        key = 'fma.channels.%s.%s' % (sender.channel.name, sender.key)
+        value = sender.value
+        self.set_volatile(key, value)
+    
+    def set_volatile(self, key, value):
+        self.client.set(key, value)
+        self.client.expire(key, self.expire)

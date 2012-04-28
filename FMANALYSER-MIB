@@ -1,0 +1,23 @@
+FMANALYSER-MIB DEFINITIONS ::= BEGIN
+
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, enterprises 
+        FROM SNMPv2-SMI;
+
+fmanalyser MODULE-IDENTITY
+    LAST-UPDATED    "1204270836Z"
+    ORGANIZATION    "Gaftech"
+    CONTACT-INFO    "gabriel@gaftech.fr"
+    DESCRIPTION     "The MIB module for fmanalyser snmp plugin"
+    REVISION        "1204270836Z"
+    DESCRIPTION     "auto-generated revision with fmanalyser version 0.1.dev"
+    ::= { gaftech 1 }
+
+gaftech OBJECT IDENTIFIER ::= { enterprises 999999 }
+
+
+
+
+
+END
