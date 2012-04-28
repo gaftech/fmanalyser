@@ -3,19 +3,20 @@
 """This module provides functions to generate the MIB file and the pysnmp python mib file.
 """
 from fmanalyser.plugins.snmp import MIB_DIR
-from subprocess import check_call
 import datetime
 import fmanalyser
 import os.path
 import shlex
+import subprocess
 
-PYSNMP_BUILD_COMMAND = 'build-pysnmp-mib'
+#PYSNMP_BUILD_COMMAND = 'build-pysnmp-mib'
 
 MAIN_TEMPLATE = """FMANALYSER-MIB DEFINITIONS ::= BEGIN
 
 
 IMPORTS
-    MODULE-IDENTITY, OBJECT-TYPE, enterprises 
+    enterprises, MODULE-IDENTITY, OBJECT-TYPE,
+        Integer32, Unsigned32
         FROM SNMPv2-SMI;
 
 fmanalyser MODULE-IDENTITY
@@ -42,12 +43,34 @@ softVersion OBJECT-TYPE
 device OBJECT IDENTIFIER ::= { fmanalyser 2 }
 
 online OBJECT-TYPE
-    SYNTAX        INTEGER(0..1)
+    SYNTAX        Integer32(0..1)
     MAX-ACCESS    read-only
     STATUS        current
     DESCRIPTION
         "The device online/offline status."
     ::= { device 1 }
+
+analyser OBJECT IDENTIFIER ::= { fmanalyser 3 }
+
+channelTable OBJECT-TYPE
+    SYNTAX       SEQUENCE OF channelEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION  "channel table"
+    ::= { analyser 1 }
+    
+channelEntry OBJECT-TYPE
+    SYNTAX       ChannelEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION  "entry in channel table"
+    INDEX        { channelIndex }
+    ::= { channelTable 1 }
+
+ChannelEntry ::= SEQUENCE {
+    channelIndex            Unsigned32
+    -- other columns in the table
+    }
 
 END
 """
@@ -56,7 +79,7 @@ END
 def get_context(**kwargs):
     context = {
         'version': fmanalyser.__version__,
-        'now': datetime.datetime.utcnow().strftime('%y%m%d%H%MZ'),
+        'now': datetime.datetime.utcnow().strftime('%Y%m%d%H%MZ'),
     }
     context.update(kwargs)
     return context
@@ -82,8 +105,24 @@ def generate(mibfile=None,
             fp.write(mib_output)
     
     if make_pysnmpfile:
-        command = '%s -o %s %s' % (PYSNMP_BUILD_COMMAND, pysnmpfile, mibfile)
-        check_call(shlex.split(command))
+        cmd = ['sh',
+               os.path.join(os.path.dirname(__file__), 'mib2py.sh'),
+               mibfile,
+               pysnmpfile]
+        subprocess.check_call(cmd)
+#        command = 
+#        command = shlex.split(command)
+#        smidump = 'smidump -l3 -f python %s' % mibfile
+#        smiparts = shlex.split(smidump)
+#        smioutput = subprocess.check_output(smiparts)
+#        
+#        0
+        
+#        command = 'smidump -l3 -f python %s | libsmi2pysnmp > %s' %(
+#            mibfile, pysnmpfile)
+#        
+##        command = '%s -o %s %s' % (PYSNMP_BUILD_COMMAND, pysnmpfile, mibfile)
+#        check_call(shlex.split(command), shell=True)
 
 
 

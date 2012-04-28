@@ -6,6 +6,7 @@ import logging
 import optparse
 import signal
 import threading
+import os.path
 
 class BaseCommand(Loggable):
     
@@ -17,7 +18,10 @@ class BaseCommand(Loggable):
             help='set verbose, can be repeated to increase verbosity'),
         optparse.make_option(
             '-q', '--quiet', dest='verbosity', action='store_const', const=-1,
-            help='set minimal verbosity')
+            help='set minimal verbosity'), 
+        optparse.make_option(
+            '-c',  '--config-file', 
+            help='config file to load (defaults to ~/.fmanalyser/conf.ini')
     )
     usage = None
     version = fmanalyser.__version__
@@ -71,6 +75,10 @@ class BaseCommand(Loggable):
             pass
         
         self.options, self.args = self.parser.parse_args(argv)
+        
+        if self.options.config_file is not None:
+            fmconfig.set_file(os.path.abspath(self.options.config_file))
+        
         self.configure_logging()
         
         self.logger.info('running %s' % self)

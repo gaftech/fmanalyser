@@ -20,50 +20,22 @@ fmanalyser MODULE-IDENTITY
 
 gaftech OBJECT IDENTIFIER ::= { enterprises 999999 }
 
--- Root nodes ***************************************
+-- Root nodes ****************************************
 device		OBJECT IDENTIFIER ::= { fmanalyser 1 }
 analyser	OBJECT IDENTIFIER ::= { fmanalyser 2 }
 software	OBJECT IDENTIFIER ::= { fmanalyser 8 }
 conformance OBJECT IDENTIFIER ::= { fmanalyser 9 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-groups OBJECT IDENTIFIER ::= { fmanalyser 6 }
-
-
-softInfoGroup OBJECT-GROUP
-	OBJECTS 	{softVersion}
-	STATUS		current
-	DESCRIPTION	"informations about the software"
-	::= { groups 3 }
-
+-- Software infos ************************************
 softVersion OBJECT-TYPE
     SYNTAX        OCTET STRING
     MAX-ACCESS    read-only
     STATUS        current
     DESCRIPTION   "fmanalyser software version"
-    ::= { software 2 }
+    ::= { software 1 }
 
-
-
-
-deviceStatusGroup OBJECT-GROUP
-	OBJECTS 	{online}
-	STATUS		current
-	DESCRIPTION	"informations about physical device status"
-	::= { groups 4 }
-
+-- Device status *************************************
 online OBJECT-TYPE
     SYNTAX        Integer32(0..1)
     MAX-ACCESS    read-only
@@ -72,14 +44,37 @@ online OBJECT-TYPE
         "The device online/offline status."
     ::= { device 2 }
 
+-- Measurements **************************************
 
 
+-- Conformance information ***************************
+compliances OBJECT IDENTIFIER ::= { conformance 1 }
+groups		OBJECT IDENTIFIER ::= { conformance 2 }
 
+staticValues OBJECT-GROUP
+	OBJECTS 	{softVersion}
+	STATUS		current
+	DESCRIPTION	"static informations"
+	::= { groups 1 }
 
+liveValues OBJECT-GROUP
+	OBJECTS		{online}
+	STATUS		current
+	DESCRIPTION	"live informations"
+	::= { groups 2 }
+	
+cachedValues OBJECT-GROUP
+	OBJECTS		{}
+	STATUS		current
+	DESCRIPTION	"cached informations"
+	::= { groups 3 }
 
-
--- Conformance information ******************************************
-mibCompliance
+mibCompliance MODULE-COMPLIANCE
+	STATUS		current
+	DESCRIPTION	"our compliance"
+	MODULE
+	MANDATORY-GROUPS {staticValues, liveValues, cachedValues}
+	::= { compliances 1 }
 
 
 

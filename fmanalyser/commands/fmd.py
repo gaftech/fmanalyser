@@ -2,6 +2,7 @@
 
 from fmanalyser import client
 from fmanalyser.conf import fmconfig
+from fmanalyser.exceptions import MissingSection
 from fmanalyser.models.channel import create_config_channels
 from fmanalyser.utils.command import BaseCommand
 from fmanalyser.utils.plugin import create_plugins
@@ -17,9 +18,6 @@ class Command(BaseCommand):
                     help='time to sleep (s) between two probing loops'),
     )
     
-#    def __init__(self, *args, **kwargs):
-#        super(Command, self).__init__(*args, **kwargs)
-    
     def _stop_worker(self):
         if self.worker is not None and not self.worker.stopped:
             self.worker.stop()
@@ -34,6 +32,9 @@ class Command(BaseCommand):
         self.worker = client.Worker(device=self.device)
         self.channels = create_config_channels(fmconfig)
         self.analyser = Analyser(client_worker=self.worker, channels=self.channels)
+
+        if not self.channels:
+            raise MissingSection('no channel configured')
 
         self.plugins = create_plugins(self, fmconfig)
         try:

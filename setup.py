@@ -12,6 +12,7 @@ setup(
     license = 'MIT',
     install_requires = (
         'pyserial >= 2.3',  # Debian squeeze version. TODO: tests with Debian !
+        'pydispatcher', 
     ),
     packages = find_packages(),
     classifiers = (
