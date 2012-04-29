@@ -4,7 +4,7 @@
 import fmanalyser
 from . import MIB_DIR
 from pysnmp.smi import builder
-from pysnmp.proto.rfc1902 import OctetString, Integer
+from pysnmp.proto.rfc1902 import Integer32, OctetString
 
 FMMIB = "FMANALYSER-MIB"
 
@@ -16,7 +16,8 @@ def populate_builder(controller, mibBuilder):
     sources = mibBuilder.getMibSources() + (builder.DirMibSource(MIB_DIR),)
     mibBuilder.setMibSources(*sources)
     
-    MibScalarInstance, = mibBuilder.importSymbols('SNMPv2-SMI', 'MibScalarInstance')
+    (MibScalarInstance, ) = mibBuilder.importSymbols('SNMPv2-SMI',
+        'MibScalarInstance')
 
     ##### BASE CLASSES AND FACTORIES
     class Getter(MibScalarInstance):
@@ -64,12 +65,40 @@ def populate_builder(controller, mibBuilder):
     class DeviceAttGetter(AttGetter):
         def getOwner(self):
             return controller.device
+    DeviceAttGetter.factory('online').export('online', Integer32())
 
-    DeviceOnline = DeviceAttGetter.factory('online').export('online', Integer())
-
-
+    ##### CHANNELS
+#    class ChannelAttGetter(AttGetter):
+#        def readGet(self, *args, **kwargs):
+#            return AttGetter.readGet(self, *args, **kwargs)
+#    ChannelAttGetter.factory('name').export('channelName', OctetString())
+    channelName, channelFreq, varName = mibBuilder.importSymbols(FMMIB, 'channelName', 'frequency', 'channelVariableName')
+    for i, channel in enumerate(controller.channels, start=1):
+        freqVar = channel.get_variable('frequency')
+        mibBuilder.exportSymbols(FMMIB,
+            MibScalarInstance(channelName.name, (i,), channelName.syntax.clone(channel.name)),
+            MibScalarInstance(channelFreq.name, (i,), channelFreq.syntax.clone(channel.frequency or 0)),
+            MibScalarInstance(varName.name, (i,1), varName.syntax.clone(freqVar.key)),
+        )
+        
+        
+#        for j, var in enumerate(channel.get_variables(), start=1):
+#            mibBuilder.exportSymbols(FMMIB,
+#                MibScalarInstance(channelName.name, (i,), channelName.syntax.clone(channel.name)),
+#                MibScalarInstance(channelFreq.name, (i,), channelFreq.syntax.clone(channel.frequency or 0)),
+#            )            
+        
+        
+#        mibBuilder.exportSymbols(FMMIB, ChannelNameGetter(channelName.name, (0,), OctetString()))
+        
     
-
-
+    
+    
+    
+    
+    
+    
+    
+    
     
     

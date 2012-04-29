@@ -13,7 +13,7 @@ from fmanalyser.exceptions import DeviceNotFound, DeviceError
 class Worker(Loggable, Stoppable):
     
     empty_queue_timeout = settings.WATCHER_SLEEP_TIME
-    max_queue_size = 10
+    max_queue_size = 100
     device_error_sleep = 1
     
     def __init__(self, device):

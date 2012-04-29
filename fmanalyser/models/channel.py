@@ -96,6 +96,9 @@ class BaseChannel(Loggable, OptionHolder):
         else:
             super(BaseChannel, self).__setattr__(name, value)
 
+    def get_variable(self, key):
+        return self._variables[key]
+
     def iter_variables(self):
         return self._variables.itervalues()
     
@@ -112,8 +115,7 @@ class BaseChannel(Loggable, OptionHolder):
             variables.append(var)
         return variables
     
-    def get_variable(self, key):
-        return self._variables[key]
+
     
     def get_variables_by_mode(self, **filters):
         variables = {}

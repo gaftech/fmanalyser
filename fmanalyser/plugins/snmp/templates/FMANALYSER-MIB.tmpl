@@ -5,16 +5,16 @@ IMPORTS
     MODULE-COMPLIANCE, OBJECT-GROUP
     	FROM SNMPv2-CONF
     enterprises, MODULE-IDENTITY, OBJECT-TYPE,
-    Integer32
+    Integer32, Unsigned32
         FROM SNMPv2-SMI;
 
 
 fmanalyser MODULE-IDENTITY
-    LAST-UPDATED    "201204281527Z"
+    LAST-UPDATED    "%(now)s"
     ORGANIZATION    "Gaftech"
     CONTACT-INFO    "gabriel@gaftech.fr"
     DESCRIPTION     "The MIB module for fmanalyser snmp plugin"
-    REVISION        "201204281527Z"
+    REVISION        "%(now)s"
     DESCRIPTION     "auto-generated revision with fmanalyser 0.1.dev"
     ::= { gaftech 1 }
 
@@ -44,7 +44,64 @@ online OBJECT-TYPE
         "The device online/offline status."
     ::= { device 2 }
 
--- Measurements **************************************
+-- Analyser root *************************************
+channels			OBJECT IDENTIFIER ::= { analyser 1 }
+channelVariables 	OBJECT IDENTIFIER ::= { analyser 2 }
+
+-- Channels ******************************************
+channelTable OBJECT-TYPE
+    SYNTAX       SEQUENCE OF ChannelEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION  "channel table"
+    ::= { channels 1 }
+
+channelEntry OBJECT-TYPE
+    SYNTAX       ChannelEntry
+    MAX-ACCESS   not-accessible
+    STATUS       current
+    DESCRIPTION  "entry in channel table"
+    INDEX        { channelIndex }
+    ::= { channelTable 1 }
+
+ChannelEntry ::= SEQUENCE {
+    channelIndex		Unsigned32,
+    channelName			OCTET STRING,
+    channelRefFrequency	Unsigned32
+    }
+
+channelIndex OBJECT-TYPE
+    SYNTAX        Unsigned32
+    MAX-ACCESS    not-accessible
+    STATUS        current
+    DESCRIPTION
+        "channel index"
+    ::= { channelEntry 1 }
+
+channelName OBJECT-TYPE
+    SYNTAX        OCTET STRING
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "channel identifer"
+    ::= { channelEntry 2 }
+    
+channelRefFrequency OBJECT-TYPE
+    SYNTAX        Unsigned32
+    MAX-ACCESS    read-only
+    STATUS        current
+    DESCRIPTION
+        "configured channel frequency"
+    ::= { channelEntry 3 }
+
+-- Variables *****************************************
+
+%(variables)s
+
+
+
+
+
 
 
 -- Conformance information ***************************
@@ -52,7 +109,9 @@ compliances OBJECT IDENTIFIER ::= { conformance 1 }
 groups		OBJECT IDENTIFIER ::= { conformance 2 }
 
 staticValues OBJECT-GROUP
-	OBJECTS 	{softVersion}
+	OBJECTS {	softVersion,
+				channelName
+			}
 	STATUS		current
 	DESCRIPTION	"static informations"
 	::= { groups 1 }
@@ -62,11 +121,11 @@ liveValues OBJECT-GROUP
 	STATUS		current
 	DESCRIPTION	"live informations"
 	::= { groups 2 }
-	
+
 cachedValues OBJECT-GROUP
-	OBJECTS		{}
+	OBJECTS		{channelRefFrequency}
 	STATUS		current
-	DESCRIPTION	"cached informations"
+	DESCRIPTION	"cached acquired data"
 	::= { groups 3 }
 
 mibCompliance MODULE-COMPLIANCE

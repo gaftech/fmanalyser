@@ -7,6 +7,8 @@ import optparse
 import signal
 import threading
 import os.path
+from fmanalyser.exceptions import CommandError
+import sys
 
 class BaseCommand(Loggable):
     
@@ -83,10 +85,13 @@ class BaseCommand(Loggable):
         
         self.logger.info('running %s' % self)
         
-        r = self.execute()
-        
-        self.logger.debug('Bye !')
-        return r
+        try:
+            r = self.execute()
+            self.logger.debug('Bye !')
+            return r
+        except CommandError, e:
+            self.logger.critical(str(e))
+            sys.exit(e.errno)
     
     def connect_signals(self):
         for sig in (signal.SIGTERM, signal.SIGINT):

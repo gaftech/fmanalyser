@@ -3,6 +3,12 @@
 class FmAnalyserException(Exception):
     """Base exception class for all fmanalyser specific exceptions"""
 
+class CommandError(FmAnalyserException):
+    """Generic exception to report a command error"""
+    def __init__(self, msg, errno=1, *args, **kwargs):
+        self.errno = errno
+        super(CommandError, self).__init__(msg, *args, **kwargs)
+
 class DeviceError(FmAnalyserException):
     """Base class for device probing or managing errors"""
 

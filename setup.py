@@ -32,6 +32,6 @@ setup(
     fmd = fmanalyser.commands.fmd:main
     fmlogger = fmanalyser.commands.fmlogger:main
     fmgui = fmanalyser.commands.fmgui:main
-    fmmibgen = fmanalyser.plugins.snmp.mibgen:generate
+    fmmibgen = fmanalyser.plugins.snmp.mibgen:main
     """),
 )
