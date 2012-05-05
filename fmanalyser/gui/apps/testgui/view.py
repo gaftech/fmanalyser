@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import wx
-from . import widgets
+from fmanalyser.gui import widgets
         
 
 class App(wx.App):

@@ -2,8 +2,9 @@
 from fmanalyser.test import TestCase
 from fmanalyser.utils.conf.options import FloatOption
 from copy import copy
-from fmanalyser.utils.conf import options
+from fmanalyser.utils.conf import options, OptionHolder
 from fmanalyser.utils.conf.declarative import DeclarativeOptionMetaclass
+import os
 
 class TestOptionHolder(object):
     __metaclass__ = DeclarativeOptionMetaclass
@@ -18,10 +19,14 @@ class AnotherHolder(TestOptionHolder):
     opt4 = options.IntOption(default=444)
     
     _options = {
-        'opt4': options.Option(),
+        'opt4': options.BooleanOption(),
         'opt5': options.Option(),
     }
 
+class FileOptionHolder(OptionHolder):
+    path = options.RelativePathOption(basepath="/tmp")
+    datapath = options.DataFileOption()
+    
 class DeclarativeOptionsTest(TestCase):
     
     def test_option_count(self):
@@ -46,10 +51,14 @@ class OptionTest(TestCase):
         
     def test_clone_owned_option(self):
         original = AnotherHolder._options['opt1']
-        self.assertIs(original._holder, TestOptionHolder)
+        self.assertIs(original._holder, AnotherHolder)
         clone = original.clone()
         self.assertIsNone(clone._holder)
         
-    
-    
+    def test_relative_path_option(self):
+        holder = FileOptionHolder(path='test.txt',
+                                  datapath='somedir/data.dat')
+        self.assertEqual(holder.path, '/tmp/test.txt')
+        self.assertEqual(holder.datapath,
+                         os.path.expanduser('~/.fmanalyser/var/somedir/data.dat'))
 

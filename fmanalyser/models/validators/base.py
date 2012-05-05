@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """A collection of classes that define a channel expected measurements.
 """
-from ..exceptions import ValidationException
-from ..utils.conf import options, OptionHolder
+from ...exceptions import ValidationException
+from ...utils.conf import options, OptionHolder
 
 class Validator(OptionHolder):
 
-    ref = options.Option(required=False)
     enabled = options.BooleanOption(default=None)
+    ref = options.Option(required=False)
     
     def __init__(self, **kwargs):
         if kwargs.get('enabled') is None:
@@ -27,22 +27,31 @@ class Validator(OptionHolder):
         return True
 
     def validate(self, value):
+        if self.enabled:
+            self.validate_value(value)
+
+    def validate_value(self, value):
         pass
 
 class StrictValidatorMixin(object):
-    def validate(self, value):
+    def validate_value(self, value):
         if value != self.ref:
             raise ValidationException('%s != %s' % (value, self.ref))
 
 class ThresholdValidatorMixin(object):
-    def validate(self, value):
+    def validate_value(self, value):
         if value < self.low or value > self.high:
             raise ValidationException('%s out of bound (%s - %s)' % (value, self.low, self.high))
 
 class RelativeThresholdValidatorMixin(object):
-    def validate(self, value):
+    def validate_value(self, value):
         if value < self.ref - self.low or value > self.ref + self.high:
             raise ValidationException(u'%s out of bound (%s +%s/-%s)' % (value, self.ref, self.high, self.low)) 
+
+class LowThresholdValidatorMixin(object):
+    def validate_value(self, value):
+        if value < self.ref:
+            raise ValidationException('%s less than %s' % (value, self.ref))
         
 class BaseIntValidator(Validator):
     ref = options.IntOption()
@@ -50,7 +59,7 @@ class BaseIntValidator(Validator):
 class BaseIntThresholdValidator(Validator):
     ref = options.IntOption()
     high = options.IntOption()
-    low = options.FloatOption()
+    low = options.IntOption()
 
 class BaseFloatThresholdValidator(Validator):
     ref = options.FloatOption()
@@ -66,33 +75,25 @@ class RelativeFloatThresholdValidator(RelativeThresholdValidatorMixin, BaseFloat
 class RelativeIntThresholdValidator(RelativeThresholdValidatorMixin, BaseIntThresholdValidator):
     pass
 
+class IntLowThresholdValidator(LowThresholdValidatorMixin, BaseIntValidator):
+    pass
+
 def factory(*bases, **kwargs):
+    name = kwargs.pop('name', 'Validator')
+    extra_options = dict((k,kwargs.pop(k)) for k, v in kwargs.items()
+                         if isinstance(v, options.Option))
     if len(bases):
         bases = tuple(bases)
     else:
         bases = (Validator,)
-    name = 'Validator'
-    NewValidator = type(name, bases, {})    
-    for k, _option in NewValidator._options.items():
-        if k in kwargs:
-            if isinstance(kwargs[k], options.Option):
-                option = kwargs.pop(k)
-            else:
-                # argument is then the default value to apply to existing option
-                option = _option.clone()
-                option.default = kwargs.pop(k)
-        else:
-            option = _option.clone()
-        NewValidator._options[k] = option
-    if len(kwargs):
-        raise ValueError(u"Can't set default value for missing kwargs %s" % ', '.join(kwargs))
+    NewValidator = type(name, bases, {'_options': extra_options})
+    for k, v in kwargs.iteritems():
+        if k not in NewValidator._options:
+            raise ValueError(u"Can't set default value for unknown option %s" % k)
+        NewValidator._options[k].default = v
     return NewValidator
     
-class SignalQualityValidator(BaseIntValidator):
-    
-    def validate(self, value):
-        if value < self.ref:
-            raise ValidationException('Quality less than %s' % self.ref)
+
         
     
     

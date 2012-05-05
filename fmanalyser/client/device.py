@@ -3,7 +3,7 @@
 from ..exceptions import DeviceNotFound, MultipleDevicesFound, PortLocked
 from ..utils.conf import options, OptionHolder
 from ..utils.log import Loggable
-from ..utils.parse import parse_carrier_frequency, parse_subcarrier_frequency, \
+from ..utils.parse import parse_carrier_frequency, parse_deviation_level, \
     parse_int, parse_histogram_data, parse, parse_float
 from ..utils.threads import Lockable, locking
 from copy import copy
@@ -24,6 +24,7 @@ class P175(Loggable, OptionHolder):
     config_section_name = 'device'
     
     port = options.Option()
+    fine_tune = options.BooleanOption(default=False)
     use_cache = options.BooleanOption(default=False)
     
     serial_options = {
@@ -56,7 +57,9 @@ class P175(Loggable, OptionHolder):
         self._lock = threading.Lock()
     
     def _reset_cache(self):
+        self._frequency = None
         self._mode = None
+        self._switches = [None, None, None, None]
     
     @property
     def socket(self):
@@ -76,10 +79,11 @@ class P175(Loggable, OptionHolder):
         elif opts.get('port') is None:
             opts['port'] = self._autodetect()
         socket = serial.Serial(**opts)
-
         self._lock_device(socket)
-        
         self._socket = socket
+        
+        self.logger.debug('configuring device...')
+        self.set_fine_tune(self.fine_tune)
         
         self.logger.info('device opened on port %s' % self._socket.port)
     
@@ -97,7 +101,7 @@ class P175(Loggable, OptionHolder):
         if self._socket is None:
             self.logger.debug('serial port already closed')
         else:
-            self.logger.debug('closing serial port %s...' % self._socket)
+            self.logger.debug('closing serial port %s...' % self._socket.port)
             fcntl.flock(self._socket, fcntl.LOCK_UN)
             self._socket.close()
             self._socket = None
@@ -123,9 +127,10 @@ class P175(Loggable, OptionHolder):
         return self._read_lines(eof, size)
     
     def _write(self, command):
-        self.logger.debug('writing: %s' % command)
         try:
-            self.socket.write(command)
+            socket = self.socket
+            self.logger.debug('writing: %s' % command)
+            socket.write(command)
         except SerialException, e:
             raise SerialError(origin=e)
     
@@ -164,7 +169,10 @@ class P175(Loggable, OptionHolder):
     
     def get_frequency(self):
         """Returns the current frequency, an an integer, in kHz"""
-        return self._probe_line('?F', formatter=parse_carrier_frequency)
+        if self.use_cache and self._frequency is not None:
+            return self._frequency
+        self._frequency = self._probe_line('?F', formatter=parse_carrier_frequency)
+        return self._frequency 
     
     def set_frequency(self, f, force=False):
         """Sets the device frequency to f (kHz)
@@ -174,9 +182,8 @@ class P175(Loggable, OptionHolder):
             actual frequency. Setting this to false can avoid to lose device-side
             data if it is already tuned to the requested frequency. 
         """
-        if not force and self.get_frequency() == int(f):
-            return
-        self._write('%s*F' % str(f).zfill(6))
+        if force or self.get_frequency() != f:
+            self._write('%s*F' % str(f).zfill(6))
     
     #: alias for :meth:`set_frequency`
     tune = set_frequency
@@ -194,10 +201,10 @@ class P175(Loggable, OptionHolder):
         return self._probe_line('?Q', formatter=parse)
     
     def get_rds(self):
-        return self._probe_line('?R', formatter=parse_subcarrier_frequency)
+        return self._probe_line('?R', formatter=parse_deviation_level)
     
     def get_pilot(self):
-        return self._probe_line('?L', formatter=parse_subcarrier_frequency)
+        return self._probe_line('?L', formatter=parse_deviation_level)
     
     def get_rds_data(self):
         # TODO: implement me !
@@ -210,8 +217,8 @@ class P175(Loggable, OptionHolder):
         data = {
             'frequency': parse_carrier_frequency(lines[1]),
             'quality': parse_int(lines[4]),
-            'pilot': parse_subcarrier_frequency(lines[7]),
-            'rds': parse_subcarrier_frequency(lines[10]),
+            'pilot': parse_deviation_level(lines[7]),
+            'rds': parse_deviation_level(lines[10]),
             'rds_phase': parse_int(lines[13]),
             'mod_power': parse_float(lines[16]),
             'histo': parse_histogram_data(lines[19:141]),
@@ -286,40 +293,32 @@ class P175(Loggable, OptionHolder):
     def clear_device_data(self):
         self._write('*C')    
     
-    def reset_device(self):
+    def reset(self):
         self._write('RESET*X')
     
     def activate_lcd_light(self):
         self._write('*0')
 
-    def set_auto_lcd_light(self, save=False):
-        self._set_dip_switch(0, 0)
+    def set_auto_light(self, auto=True, **kwargs):
+        state = not auto
+        self._set_dip_switch(0, state, **kwargs)
     
-    def set_manual_lcd_light(self, save=False):
-        self._set_dip_switch(0, 1)
+    def set_light(self, on=True, **kwargs):
+        self._set_dip_switch(1, on, **kwargs)
     
-    def switch_on_manual_lcd_light(self, save=False):
-        self._set_dip_switch(1, 1)
+    def set_fine_tune(self, fine=True, **kwargs):
+        state = not fine
+        self._set_dip_switch(2, state, **kwargs)
     
-    def switch_off_manual_lcd_light(self, save=False):
-        self._set_dip_switch(1, 0)
+    def set_high_scan_sensitivity(self, high=True, **kwargs):
+        self._set_dip_switch(3, high, **kwargs)
     
-    def activate_fine_tuning(self, save=False):
-        self._set_dip_switch(2, 0)
-    
-    def deactivate_fine_tuning(self, save=False):
-        self._set_dip_switch(2, 1)
-    
-    def set_low_scan_sensitivity(self, save=False):
-        self._set_dip_switch(3, 0)
-    
-    def set_high_scan_sensitivity(self, save=False):
-        self._set_dip_switch(3, 1)
-    
-    def _set_dip_switch(self, switch, state, save):
-        if isinstance(state, bool):
-            state = {True: 1, False: 0}[state]
-        self._write('DIP%s:%s*X' % (switch, state))
+    def _set_dip_switch(self, switch, state, save=True, force=False):
+        state = int(state)
+        assert state in (0,1)
+        if force or self._switches[switch] != state:
+            self._write('DIP%s:%s*X' % (switch, state))
+        self._switches[switch] = state
         if save:
             self.save_to_eeprom()
         

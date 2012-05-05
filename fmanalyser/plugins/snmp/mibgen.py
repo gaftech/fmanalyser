@@ -4,26 +4,19 @@
 """
 from fmanalyser.exceptions import CommandError
 from fmanalyser.models.channel import Channel
-from fmanalyser.plugins.snmp import MIB_DIR
+from fmanalyser.plugins.snmp import adapters, DEFAULT_MIB_FILE, \
+    DEFAULT_PYMIB_FILE, render_template, VARIABLE_TEMPLATE, ROOT_TEMPLATE
 from fmanalyser.utils.command import BaseCommand
 from optparse import make_option
 import datetime
 import fmanalyser
-import os.path
+import os
 import shlex
 import subprocess
 import sys
 import tempfile
+from fmanalyser.utils.datastructures.ordereddict import OrderedDict
 
-#PYSNMP_BUILD_COMMAND = 'build-pysnmp-mib'
-
-CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
-TEMPLATE_DIR = os.path.abspath(os.path.join(CURRENT_DIR, 'templates'))
-DEFAULT_MIB_FILE = os.path.join(MIB_DIR, 'FMANALYSER-MIB')
-DEFAULT_PYMIB_FILE = os.path.join(MIB_DIR, 'FMANALYSER-MIB.py')
-
-ROOT_TEMPLATE = os.path.join(TEMPLATE_DIR, 'FMANALYSER-MIB.tmpl')
-VARIABLE_TEMPLATE = os.path.join(TEMPLATE_DIR, 'ChannelVariable.tmpl')
 
 class Command(BaseCommand):
     
@@ -54,27 +47,45 @@ class Command(BaseCommand):
         context.update(kwargs)
         return context
     
-    def render_template(self, filename, **context):
-        with open(filename) as fp:
-            template = fp.read()
-        return template % context
-    
     def render_mib(self):
         context = self.get_context()
         
         # Channel variables
         variable_outputs = [] 
-        for i, descriptor in enumerate(Channel.get_class_descriptors(), start=1):
-            variable_output = self.render_template(VARIABLE_TEMPLATE,
-                index = i,
-                name = '%sChannelVariable' % descriptor.key,
+        for varindex, descriptor in enumerate(Channel.get_class_descriptors(), start=1):
+            option_adapters = OrderedDict(
+                (k, adapters.make_option_adapter(option))
+                for k, option in descriptor.validator.iter_options()
+            )
+            optnode = '%sOptions' % descriptor.key
+            option_output = ''
+            for optindex, adapter in enumerate(option_adapters.values(), start=1):
+                option_output += adapter.render_mib_object(
+                    index = optindex,
+                    optnode = optnode,
+                    varkey = descriptor.key,
+                )  
+            variable_output = render_template(VARIABLE_TEMPLATE,
+                index = varindex,
+                key = descriptor.key,
+                varnode = '%sChannelVariable' % descriptor.key,
+                value_syntax = option_adapters['ref'].get_syntax(),
+                optnode = optnode,
+                options = option_output,
             )
             variable_outputs.append(variable_output)
         context['variables'] = '\n'.join(variable_outputs)
         
-        return self.render_template(ROOT_TEMPLATE, **context)
+        return render_template(ROOT_TEMPLATE, **context)
     
     def execute(self):
+        
+        # Add the virtualenv bin dir to the system path
+        # in case pysnmp commands are installed there
+        # and this command is not running in virtualenv
+        binpath = os.path.dirname(sys.executable)
+        if binpath not in os.environ['PATH'].split(':'):
+            os.environ['PATH'] += ':%s' % binpath
         
         mibfile = os.path.abspath(self.options.mibfile)
         pyfile = os.path.abspath(self.options.pyfile)
@@ -116,6 +127,7 @@ class Command(BaseCommand):
             self.logger.debug(' '.join(smi2py))
             smi2py_output = tempfile.TemporaryFile()
             try:
+                test = os.environ['PATH']
                 subprocess.check_call(smi2py, stdin=smidump_output, stdout=smi2py_output)
             except subprocess.CalledProcessError, e:
                 raise CommandError('libsmi2pysnmp failed', errno=e.returncode)                

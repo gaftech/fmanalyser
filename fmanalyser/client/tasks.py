@@ -8,15 +8,21 @@ class BaseTask(Loggable, Stoppable):
     def __init__(self):
         super(BaseTask, self).__init__()
         self._done = False
+        self._retval = None
     
     def perform(self, worker):
         try:
             self.logger.debug('performing %s...' % self)
-            self.run(worker)
+            self._retval = self.run(worker)
             self._done = True
             self.logger.debug('%s done' % self)
         finally:
             self._stop.set()
+        return self._retval
+    
+    def wait(self, *args, **kwargs):
+        super(BaseTask, self).wait(*args, **kwargs)
+        return self._retval
     
     def run(self, worker):
         pass

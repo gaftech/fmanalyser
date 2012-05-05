@@ -14,7 +14,8 @@ class TestCase(BaseTestCase):
     @classmethod
     def setUpClass(cls):
         from .. import conf
-        test_inifile = os.path.join(conf.CONF_DIR, 'test.ini')
+        default_conf_dir = os.path.dirname(conf.DEFAULT_CONF_FILE)
+        test_inifile = os.path.join(default_conf_dir, 'test.ini')
         config = conf.fmconfig
         if config._files != [test_inifile] and os.path.exists(test_inifile):
             config.set_file(test_inifile)

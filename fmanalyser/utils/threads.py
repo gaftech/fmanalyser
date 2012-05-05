@@ -17,6 +17,15 @@ class Stoppable(object):
     def stop(self, *args, **kwargs):
         self._stop.set()
 
+    def sleep(self, timeout=None, blocking=True):
+        try:
+            self.wait(timeout, blocking)
+        except Timeout:
+            pass
+
+    def short_sleep(self):
+        self._stop.wait(settings.WATCHER_SLEEP_TIME)
+
     def wait(self, timeout=None, blocking=True):
         if blocking:
             self._wait_blocking(timeout)
@@ -29,7 +38,8 @@ class Stoppable(object):
         while not self._stop.is_set():
             if timeout is not None and time.time() > time_limit:
                 raise Timeout(self)
-            time.sleep(settings.WATCHER_SLEEP_TIME)
+            self.short_sleep()
+#            time.sleep(settings.WATCHER_SLEEP_TIME)
 
     def _wait_blocking(self, timeout):
         self._stop.wait(timeout)

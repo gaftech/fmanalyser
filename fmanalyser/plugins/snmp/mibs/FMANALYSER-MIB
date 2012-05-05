@@ -6,19 +6,29 @@ IMPORTS
     	FROM SNMPv2-CONF
     enterprises, MODULE-IDENTITY, OBJECT-TYPE,
     Integer32, Unsigned32
-        FROM SNMPv2-SMI;
-
+        FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, TruthValue
+		FROM SNMPv2-TC;
 
 fmanalyser MODULE-IDENTITY
-    LAST-UPDATED    "201204290928Z"
+    LAST-UPDATED    "201205031304Z"
     ORGANIZATION    "Gaftech"
     CONTACT-INFO    "gabriel@gaftech.fr"
     DESCRIPTION     "The MIB module for fmanalyser snmp plugin"
-    REVISION        "201204290928Z"
+    REVISION        "201205031304Z"
     DESCRIPTION     "auto-generated revision with fmanalyser 0.1.dev"
     ::= { gaftech 1 }
 
 gaftech OBJECT IDENTIFIER ::= { enterprises 999999 }
+
+-- Conventions ***************************************
+DeviationLevel ::= TEXTUAL-CONVENTION
+	DISPLAY-HINT	"d-3"
+	STATUS			current
+	DESCRIPTION
+		"floating point number representing a subcarrier deviation level
+		as an integer, in Hz"
+	SYNTAX			Integer32
 
 -- Root nodes ****************************************
 device		OBJECT IDENTIFIER ::= { fmanalyser 1 }
@@ -46,7 +56,6 @@ online OBJECT-TYPE
 
 -- Analyser root *************************************
 channels			OBJECT IDENTIFIER ::= { analyser 1 }
-channelVariables 	OBJECT IDENTIFIER ::= { analyser 2 }
 
 -- Channels ******************************************
 channelTable OBJECT-TYPE
@@ -67,7 +76,7 @@ channelEntry OBJECT-TYPE
 ChannelEntry ::= SEQUENCE {
     channelIndex		Unsigned32,
     channelName			OCTET STRING,
-    channelRefFrequency	Unsigned32
+    channelVariables	OBJECT IDENTIFIER
     }
 
 channelIndex OBJECT-TYPE
@@ -86,25 +95,244 @@ channelName OBJECT-TYPE
         "channel identifer"
     ::= { channelEntry 2 }
     
-channelRefFrequency OBJECT-TYPE
-    SYNTAX        Unsigned32
-    MAX-ACCESS    read-only
-    STATUS        current
-    DESCRIPTION
-        "configured channel frequency"
-    ::= { channelEntry 3 }
 
 -- Variables *****************************************
+--channelVariables OBJECT-TYPE
+--    SYNTAX      OBJECT IDENTIFIER
+--    MAX-ACCESS  read-only
+--    STATUS      current
+--    DESCRIPTION
+--            "Test"
+--    ::= { channelEntry 4 }
+channelVariables OBJECT IDENTIFIER ::= { channelEntry 4 }
 
-rfChannelVariable OBJECT IDENTIFIER ::= { channelVariables 1 }
-frequencyChannelVariable OBJECT IDENTIFIER ::= { channelVariables 2 }
+frequencyChannelVariable OBJECT IDENTIFIER ::= { channelVariables 1 }
+
+frequencyKey OBJECT-TYPE
+	SYNTAX		OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the variable string identifier"
+    ::= { frequencyChannelVariable 1 }
+    
+frequencyValue OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"the last measured value"
+	::= { frequencyChannelVariable 2 }
+    
+frequencyOptions OBJECT IDENTIFIER ::= { frequencyChannelVariable 10 }
+
+frequencyEnabled OBJECT-TYPE
+	SYNTAX		TruthValue
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"enabled option for frequency variable"
+	::= { frequencyOptions 1 }
+	frequencyRef OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"ref option for frequency variable"
+	::= { frequencyOptions 2 }
+	
+	
+		
+rfChannelVariable OBJECT IDENTIFIER ::= { channelVariables 2 }
+
+rfKey OBJECT-TYPE
+	SYNTAX		OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the variable string identifier"
+    ::= { rfChannelVariable 1 }
+    
+rfValue OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"the last measured value"
+	::= { rfChannelVariable 2 }
+    
+rfOptions OBJECT IDENTIFIER ::= { rfChannelVariable 10 }
+
+rfEnabled OBJECT-TYPE
+	SYNTAX		TruthValue
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"enabled option for rf variable"
+	::= { rfOptions 1 }
+	rfRef OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"ref option for rf variable"
+	::= { rfOptions 2 }
+	rfHigh OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"high option for rf variable"
+	::= { rfOptions 3 }
+	rfLow OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"low option for rf variable"
+	::= { rfOptions 4 }
+	
+	
+		
 qualityChannelVariable OBJECT IDENTIFIER ::= { channelVariables 3 }
-rdsChannelVariable OBJECT IDENTIFIER ::= { channelVariables 4 }
-pilotChannelVariable OBJECT IDENTIFIER ::= { channelVariables 5 }
 
+qualityKey OBJECT-TYPE
+	SYNTAX		OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the variable string identifier"
+    ::= { qualityChannelVariable 1 }
+    
+qualityValue OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"the last measured value"
+	::= { qualityChannelVariable 2 }
+    
+qualityOptions OBJECT IDENTIFIER ::= { qualityChannelVariable 10 }
 
+qualityEnabled OBJECT-TYPE
+	SYNTAX		TruthValue
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"enabled option for quality variable"
+	::= { qualityOptions 1 }
+	qualityRef OBJECT-TYPE
+	SYNTAX		Integer32
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"ref option for quality variable"
+	::= { qualityOptions 2 }
+	
+	
+		
+pilotChannelVariable OBJECT IDENTIFIER ::= { channelVariables 4 }
 
+pilotKey OBJECT-TYPE
+	SYNTAX		OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the variable string identifier"
+    ::= { pilotChannelVariable 1 }
+    
+pilotValue OBJECT-TYPE
+	SYNTAX		DeviationLevel
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"the last measured value"
+	::= { pilotChannelVariable 2 }
+    
+pilotOptions OBJECT IDENTIFIER ::= { pilotChannelVariable 10 }
 
+pilotEnabled OBJECT-TYPE
+	SYNTAX		TruthValue
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"enabled option for pilot variable"
+	::= { pilotOptions 1 }
+	pilotRef OBJECT-TYPE
+	SYNTAX		DeviationLevel
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"ref option for pilot variable"
+	::= { pilotOptions 2 }
+	pilotHigh OBJECT-TYPE
+	SYNTAX		DeviationLevel
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"high option for pilot variable"
+	::= { pilotOptions 3 }
+	pilotLow OBJECT-TYPE
+	SYNTAX		DeviationLevel
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"low option for pilot variable"
+	::= { pilotOptions 4 }
+	
+	
+		
+rdsChannelVariable OBJECT IDENTIFIER ::= { channelVariables 5 }
+
+rdsKey OBJECT-TYPE
+	SYNTAX		OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the variable string identifier"
+    ::= { rdsChannelVariable 1 }
+    
+rdsValue OBJECT-TYPE
+	SYNTAX		DeviationLevel
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"the last measured value"
+	::= { rdsChannelVariable 2 }
+    
+rdsOptions OBJECT IDENTIFIER ::= { rdsChannelVariable 10 }
+
+rdsEnabled OBJECT-TYPE
+	SYNTAX		TruthValue
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"enabled option for rds variable"
+	::= { rdsOptions 1 }
+	rdsRef OBJECT-TYPE
+	SYNTAX		DeviationLevel
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"ref option for rds variable"
+	::= { rdsOptions 2 }
+	rdsHigh OBJECT-TYPE
+	SYNTAX		DeviationLevel
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"high option for rds variable"
+	::= { rdsOptions 3 }
+	rdsLow OBJECT-TYPE
+	SYNTAX		DeviationLevel
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"low option for rds variable"
+	::= { rdsOptions 4 }
+	
+	
+		
 
 
 
@@ -126,17 +354,17 @@ liveValues OBJECT-GROUP
 	DESCRIPTION	"live informations"
 	::= { groups 2 }
 
-cachedValues OBJECT-GROUP
-	OBJECTS		{channelRefFrequency}
-	STATUS		current
-	DESCRIPTION	"cached acquired data"
-	::= { groups 3 }
+--cachedValues OBJECT-GROUP
+--	OBJECTS		{channelRefFrequency}
+--	STATUS		current
+--	DESCRIPTION	"cached acquired data"
+--	::= { groups 3 }
 
 mibCompliance MODULE-COMPLIANCE
 	STATUS		current
 	DESCRIPTION	"our compliance"
 	MODULE
-	MANDATORY-GROUPS {staticValues, liveValues, cachedValues}
+	MANDATORY-GROUPS {staticValues, liveValues}
 	::= { compliances 1 }
 
 

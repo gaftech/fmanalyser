@@ -10,6 +10,19 @@ class OptionHolder(object):
     config_section_name = None
     
     @classmethod
+    def get_options(cls):
+        return cls._options.values()
+    
+    @classmethod
+    def iter_options(cls):
+        for k, opt in cls._options.iteritems():
+            yield k, opt
+    
+    @classmethod
+    def get_option(cls, attname):
+        return cls._options[attname]
+    
+    @classmethod
     def config_section_factory(cls, config_class=BaseConfigSection, **attrs):
         assert cls.config_section_name is not None
         attrs['basename'] = cls.config_section_name
@@ -25,14 +38,10 @@ class OptionHolder(object):
         
         # Set instance attributes from kwargs or option defaults
         for k, option in self._options.items():
-            if option.required and k not in kwargs:
-                raise MissingOption(k)
             assert not hasattr(self, k)
-            setattr(self, k, kwargs.pop(k, option.default))
-            
+            setattr(self, k, option.pop_val_from_dict(kwargs))
         if len(kwargs):
             raise UnexpectedOption(', '.join(kwargs))
-        
         
     
     

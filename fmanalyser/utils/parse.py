@@ -42,7 +42,7 @@ def parse_carrier_frequency(raw_value):
     """
     return parse_float_to_int(raw_value, 1000)
 
-def parse_subcarrier_frequency(raw_value):
+def parse_deviation_level(raw_value):
     """From a string representing a frequency in kHz, returns the float value."""
     return parse_float(raw_value)
 

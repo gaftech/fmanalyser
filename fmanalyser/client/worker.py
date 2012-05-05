@@ -53,7 +53,11 @@ class Worker(Loggable, Stoppable):
                 self._current_task.stop()
             self._client.close()
             self.logger.info('device released : %s' % self._client)
-        
+    
+    @property
+    def client(self):
+        return self._client
+    
     def is_alive(self):
         return self._thread.is_alive()
     

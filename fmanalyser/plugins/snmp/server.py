@@ -28,14 +28,14 @@ class SnmpServerPlugin(BasePlugin):
     
     # v3 specific options
     v3 = options.BooleanOption(default=True)
-    auth_protocol = options.ChoiceOption(('SHA1', 'MD5'), default='MD5')
-    priv_protocol = options.ChoiceOption(('AES', 'DES'), default='DES')
+    auth_protocol = options.Option(choices=('SHA1', 'MD5'), default='MD5')
+    priv_protocol = options.Option(choices=('AES', 'DES'), default='DES')
     user_name = options.Option(default='user')
-    user_security_level = options.ChoiceOption(('noAuthNoPriv', 'authNoPriv', 'authPriv'), default='noAuthNoPriv')
+    user_security_level = options.Option(choices=('noAuthNoPriv', 'authNoPriv', 'authPriv'), default='noAuthNoPriv')
     user_auth_key = options.Option(default='auth_key')
     user_priv_key = options.Option(default='priv_key')
     admin_name = options.Option(default='admin')
-    admin_security_level = options.ChoiceOption(('noAuthNoPriv', 'authNoPriv', 'authPriv'), default='authNoPriv')
+    admin_security_level = options.Option(choices=('noAuthNoPriv', 'authNoPriv', 'authPriv'), default='authNoPriv')
     admin_auth_key = options.Option(default='auth_key')
     admin_priv_key = options.Option(default='priv_key')
     

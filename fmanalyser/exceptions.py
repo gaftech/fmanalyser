@@ -39,17 +39,23 @@ class ConfigError(FmAnalyserException):
 class MissingSection(ConfigError):
     """Raised when a required section is not found in configuration""" 
 
-class MissingOption(ConfigError):
-    """Raised when a required option is not found in configuration""" 
-
 class UnexpectedSection(ConfigError):
     """Raised when an unexpected section is found in a config"""
 
-class UnexpectedOption(ConfigError):
+class OptionError(ConfigError):
+    """Option specific config errors"""
+
+class MissingOption(OptionError):
+    """Raised when a required option is not found in configuration"""
+
+class UnexpectedOption(OptionError):
     """Raised when an unexpected option is found in a config"""
 
-class InvalidOption(ConfigError):
+class InvalidOption(OptionError):
     """Raised when an option value can't be converted to the appropriate type or doesn't respond to specific requirements"""  
+
+class BadOptionValue(InvalidOption):
+    """Raised when an option value doesn't meet a requirement"""
 
 class ValidationException(FmAnalyserException):
     """Raised by validators when a value doesn't match the expected one"""

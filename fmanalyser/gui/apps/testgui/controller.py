@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-from . import view
-from .. import client
-from ..models import channel
-from ..models.analyser import Analyser
-from ..models.signals import value_changed
-from ..utils.log import Loggable
-from ..utils.parse import parse_carrier_frequency
+from fmanalyser import client
+from fmanalyser.gui.apps.testgui import view
+from fmanalyser.models import channel
+from fmanalyser.models.analyser import Analyser
+from fmanalyser.models.signals import value_changed
+from fmanalyser.utils.command import BaseCommand
+from fmanalyser.utils.log import Loggable
+from fmanalyser.utils.parse import parse_carrier_frequency
 from pydispatch.dispatcher import liveReceivers, getAllReceivers, connect
 import sys
 import threading
@@ -111,4 +112,14 @@ class Controller(Loggable):
         
         
         
+class Command(BaseCommand):
     
+    def execute(self):
+        controller = Controller()
+        controller.run()
+
+def main():
+    sys.exit(Command().run())
+
+if __name__ == '__main__':
+    main()    

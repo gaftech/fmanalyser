@@ -2,12 +2,12 @@
 from . import test
 from .client.device import P175
 from .models.channel import Channel
+from .models.bandscan import Bandscan
 from .utils.conf import BaseConfig, BaseConfigSection, options
 from .utils.plugin import BasePlugin
 import os.path
 
-CONF_DIR = os.path.expanduser('~/.fmanalyser/')
-CONF_FILE = os.path.join(CONF_DIR, 'conf.ini')
+DEFAULT_CONF_FILE = os.path.expanduser(os.path.join('~', '.fmanalyser', 'etc', 'conf.ini'))
 
 class VERBOSITY:
     
@@ -22,7 +22,8 @@ class GlobalConfigSection(BaseConfigSection):
     
     basename = 'global'
     
-    verbosity = options.IntChoiceOption(VERBOSITY.CHOICES)
+    verbosity = options.IntOption(choices=VERBOSITY.CHOICES)
+    data_dir = options.Option(default=os.path.expanduser(os.path.join('~', '.fmanalyser', 'var')))
 
 class Config(BaseConfig):
     
@@ -30,10 +31,11 @@ class Config(BaseConfig):
         GlobalConfigSection,
         P175.config_section_factory(),
         Channel.config_section_factory(),
+        Bandscan.config_section_factory(),
         BasePlugin.config_section_factory(),
         test.ConfigSection,
     )
 
 #: The global configuration access point
-fmconfig = Config(CONF_FILE)
+fmconfig = Config(DEFAULT_CONF_FILE)
 

@@ -20,7 +20,7 @@ class EventSignal(Signal):
         self.event_cls = event_cls
         
     def send(self, sender, *event_args, **event_kwargs):
-        event = self.event_cls(sender=sender, *event_args, **event_kwargs)
+        event = self.event_cls(*event_args, **event_kwargs)
         dispatcher.send(signal=self, sender=sender, event=event)
     
     

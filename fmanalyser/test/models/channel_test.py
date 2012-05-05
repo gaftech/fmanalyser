@@ -3,6 +3,17 @@ from .. import TestCase
 from ...conf import Config
 from ...models.channel import Channel, create_config_channels
 
+class ChannelVariablesTest(TestCase):
+    
+    def test_validator_option_order(self):
+        channel = Channel()
+        validator = channel._descriptors['rds'].validator
+        options = validator._options
+        self.assertSequenceEqual(options.keys(),
+            ['enabled', 'ref', 'high', 'low']
+        )
+    
+
 class ChannelConfigTest(TestCase):
     
     def setUp(self):

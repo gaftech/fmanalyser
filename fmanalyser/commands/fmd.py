@@ -18,18 +18,16 @@ class Command(BaseCommand):
                     help='time to sleep (s) between two probing loops'),
     )
     
-    def _stop_worker(self):
-        if self.worker is not None and not self.worker.stopped:
-            self.worker.stop()
+
     
     def stop(self, *args, **kwargs):
         super(Command, self).stop(*args, **kwargs)
         self._stop_worker()
     
     def execute(self):
-        self.config = fmconfig
-        self.device = client.P175(**fmconfig['device'])
-        self.worker = client.Worker(device=self.device)
+#        self.device = client.P175(**fmconfig['device'])
+#        self.worker = client.Worker(device=self.device)
+        self._init_worker()
         self.channels = create_config_channels(fmconfig)
         self.analyser = Analyser(client_worker=self.worker, channels=self.channels)
 
@@ -52,13 +50,13 @@ class Command(BaseCommand):
                         self._stop.wait(self.options.sleep)                        
                     last_task = self.analyser.enqueue_updates()
                     self.logger.debug('waiting for task %s' % last_task)
-                self._stop.wait(WATCHER_SLEEP_TIME)
+                self.short_sleep()
                 
                 
                 
 
         finally:
-            self._stop_worker()
+#            self.stop_worker()
             for plugin in self.plugins:
                 try:
                     plugin.close()

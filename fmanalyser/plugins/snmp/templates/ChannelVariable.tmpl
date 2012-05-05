@@ -1,1 +1,23 @@
-%(name)s OBJECT IDENTIFIER ::= { channelVariables %(index)s }
+%(varnode)s OBJECT IDENTIFIER ::= { channelVariables %(index)s }
+
+%(key)sKey OBJECT-TYPE
+	SYNTAX		OCTET STRING
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION
+        "the variable string identifier"
+    ::= { %(varnode)s 1 }
+    
+%(key)sValue OBJECT-TYPE
+	SYNTAX		%(value_syntax)s
+	MAX-ACCESS	read-only
+	STATUS		current
+	DESCRIPTION
+		"the last measured value"
+	::= { %(varnode)s 2 }
+    
+%(optnode)s OBJECT IDENTIFIER ::= { %(varnode)s 10 }
+
+%(options)s
+	
+		

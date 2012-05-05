@@ -4,6 +4,7 @@ from . import validators, descriptors, Variable
 from ..client import RDS_MODE, MEASURING_MODE, STEREO_MODE, tasks
 from ..exceptions import ValidationException
 from ..utils.conf import options, OptionHolder, DeclarativeOptionMetaclass
+from ..utils.datastructures.ordereddict import OrderedDict
 from ..utils.log import Loggable
 import threading
 
@@ -13,18 +14,21 @@ class ChannelBase(DeclarativeOptionMetaclass):
                 
         new_attrs = attrs.copy()
         
-        _descriptors = {}
-        
+#        _descriptors = OrderedDict()
+        _descriptor_items = []
         for k, v in attrs.items():
             if isinstance(v, descriptors.ValueDescriptor):
-                _descriptors[k] = new_attrs.pop(k)
-                
+#                _descriptors[k] = new_attrs.pop(k)
+                _descriptor_items.append((k, new_attrs.pop(k)))
+        
+        _descriptor_items.sort(cmp=lambda x,y: cmp(x[1].creation_order, y[1].creation_order))
+          
         new_class = super(ChannelBase, cls).__new__(
             cls, name, bases, new_attrs)
         
-        setattr(new_class, '_descriptors', _descriptors)
+        new_class._descriptors = OrderedDict(_descriptor_items)
         
-        for k, descriptor in _descriptors.items():
+        for k, descriptor in new_class._descriptors.items():
             descriptor.contribute_to_class(new_class, k)
                 
         return new_class
@@ -60,7 +64,7 @@ class BaseChannel(Loggable, OptionHolder):
 
     def __init__(self, name=None, **kwargs):
 
-        self._variables = {}
+        self._variables = OrderedDict()
         
         self.name = name
         
@@ -145,7 +149,8 @@ class Channel(BaseChannel):
     frequency = descriptors.CarrierFrequencyDescriptor(
         short_key = 'f',
         unit = 'MHz',
-        validator = validators.factory(validators.StrictIntValidator,
+        validator = validators.factory(validators.base.StrictIntValidator,
+            name = 'FrequencyValidator',
             enabled = True,
             ref = options.CarrierFrequencyOption()),
         device_mode = None,
@@ -155,29 +160,30 @@ class Channel(BaseChannel):
     rf = descriptors.ValueDescriptor(
         short_key = 'l',
         unit = u'dBµV',
-        validator = validators.factory(validators.RelativeFloatThresholdValidator,
-                                       high=6, low=6)                        
+        validator_class = validators.RfLevelValidator,
+        validator_options = dict(high=6, low=6)                        
     )
     
     quality = descriptors.ValueDescriptor(
         short_key = 'q',
-        validator = validators.factory(validators.SignalQualityValidator, ref=5)
+        validator_class = validators.QualityValidator,
+        validator_options = dict(ref=5)
     )
     
     pilot = descriptors.ValueDescriptor(
         verbose_name = 'pilot subcarrier deviation',
         short_key = 'p',
         unit = 'kHz',
-        validator = validators.factory(validators.RelativeFloatThresholdValidator,
-                                       ref = 6, high = 0.5, low = 0.5)                                            
+        validator_class = validators.DeviationLevelValidator,
+        validator_options = dict(ref = 6, high = 0.5, low = 0.5)                                            
     )
     
     rds = descriptors.ValueDescriptor(
         verbose_name = 'rds subcarrier deviation',
         short_key = 'r',
         unit = 'kHz',
-        validator = validators.factory(validators.RelativeFloatThresholdValidator,
-                                       ref = 4, high = 0.5, low = 0.5)
+        validator_class = validators.DeviationLevelValidator,
+        validator_options = dict(ref = 4, high = 0.5, low = 0.5)
     )
     
     rds_lock_time = options.FloatOption(default=5)

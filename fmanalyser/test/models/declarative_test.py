@@ -27,11 +27,18 @@ class ChannelConfigTest(TestCase):
     def setUp(self):
         super(ChannelConfigTest, self).setUp()
         self.ChannelConfig = TestChannelClass.config_section_factory()
-    
+
+    def test_option_clone(self):
+        self.assertIsNot(
+            TestChannelClass._descriptors['value1'].validator._options['opt3'],
+            TestChannelClass._descriptors['value2'].validator._options['opt3'],
+        )
+        
+   
     def test_default_values(self):
         self.assertEqual(self.ChannelConfig._options['value1_opt3'].default, 1)
         self.assertEqual(self.ChannelConfig._options['value2_opt3'].default, 2)
-    
+#    
     
 
 
@@ -41,9 +48,9 @@ class DeclarativeValidatorTest(TestCase):
     def test_option_count(self):
         self.assertEqual(len(Validator1._options), 5)
         
-#    def test_option_names(self):
-#        self.assertEqual(Validator1._options['opt1'].name, 'opt1')
-#        self.assertEqual(Validator1._options['opt2'].name, 'opt2')
+    def test_option_attnames(self):
+        self.assertEqual(Validator1._options['opt1'].attname, 'opt1')
+        self.assertEqual(Validator1._options['opt2'].attname, 'opt2')
     
     
 

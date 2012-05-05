@@ -36,8 +36,11 @@ class ValidatorTest(LiveTestCase):
         while True:
             rds = self.client.get_rds()
             self.assertIsInstance(rds, float)
+            pilot = self.client.get_pilot()
+            self.assertIsInstance(pilot, float)            
             try:
                 self.channel.validate('rds', rds)
+                self.channel.validate('pilot', pilot)
             except ValidationException:
                 if time.time() >= time_limit:
                     raise
