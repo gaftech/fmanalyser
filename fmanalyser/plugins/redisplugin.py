@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-from ..utils.plugin import BasePlugin
+from ..plugins.base import CorePlugin
 import redis
 from ..models.signals import value_changed
-from ..utils.conf import options
+from ..conf import options
 
-class RedisPlugin(BasePlugin):
+class RedisPlugin(CorePlugin):
+    
+    config_section_name = 'redis'
     
     host = options.Option(default='localhost')
     port = options.IntOption(default=6379)

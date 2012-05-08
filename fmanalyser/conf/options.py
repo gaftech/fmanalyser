@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-from ...exceptions import InvalidOption
-from ..parse import parse_carrier_frequency, parse_deviation_level
+from ..exceptions import InvalidOption, MissingOption
+from ..utils.parse import parse_carrier_frequency, parse_deviation_level
 import math
-from fmanalyser.exceptions import MissingOption
 import os
 
 class BaseOption(object):
@@ -14,7 +13,7 @@ class BaseOption(object):
 
     _ct_opts = ('value_type', 'null_value')
 
-    def __init__(self, default=None, required=False, choices=None, **kwargs):
+    def __init__(self, default=None, required=False, choices=None, ini_help='', **kwargs):
         
         self._creation_order = Option._creation_counter
         Option._creation_counter += 1
@@ -22,6 +21,7 @@ class BaseOption(object):
         self.default = default
         self._required = required
         self.choices = choices
+        self.ini_help = ini_help
         for k in self._ct_opts:
             if k in kwargs:
                 setattr(self, k, kwargs.pop(k))
@@ -44,6 +44,7 @@ class BaseOption(object):
             default = self.default,
             required = self._required,
             choices = self.choices,
+            ini_help = self.ini_help,
         )
         for k in self._ct_opts:
             kwargs[k] = getattr(self, k)
@@ -106,6 +107,10 @@ class BaseOption(object):
             raise InvalidOption('%s: %s not in [%s]' % (self, value, ', '.join(str(c) for c in self.choices)))
         return value
 
+    def unclean(self, value):
+        """Returns a parseable value"""
+        return str(value)
+
     def get_null_value(self):
         if self.null_value is None:
             raise NotImplementedError(
@@ -119,6 +124,10 @@ class BooleanOption(Option):
     value_type = bool
     true_values = set((True, 1, '1', 'on', 'true'))
     false_values = set((False, 0, '0', 'off', 'false'))
+    
+    def __init__(self, **kwargs):
+        kwargs.setdefault('default', False)
+        super(BooleanOption, self).__init__(**kwargs)
     
     def clean(self, value):
         if isinstance(value, basestring):
@@ -162,8 +171,8 @@ class DataFileOption(BaseRelativePathOption):
     
     @property
     def basepath(self):
-        from fmanalyser.conf import fmconfig
-        return fmconfig['global']['data_dir']
+        from .fmconfig import fmconfig
+        return os.path.expanduser(fmconfig['global']['data_dir'])
 
 
 class CarrierFrequencyOption(IntOption):
@@ -172,6 +181,11 @@ class CarrierFrequencyOption(IntOption):
     
     def clean(self, value):
         return parse_carrier_frequency(value)
+    
+    def unclean(self, value):
+        if value is not None:
+            value = float(value)/1000
+        return super(CarrierFrequencyOption, self).unclean(value)
 
 class kHzOption(FloatOption):
     """Represents a frequency value displayed in kHz and stored in Hz"""

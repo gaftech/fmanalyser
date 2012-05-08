@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
+from ..conf import OptionHolder, BaseConfigSection, options
 from ..exceptions import AlreadyRegistered
-from ..utils.conf import OptionHolder, BaseConfigSection, options
 from ..utils.datastructures.ordereddict import OrderedDict
 from ..utils.import_tools import get_class
 from ..utils.log import Loggable
 
-class BasePluginConfigSection(BaseConfigSection):
+class BasePlugin(Loggable, OptionHolder):
+    enabled = options.BooleanOption(default=True)
+
+class CorePlugin(BasePlugin):
+    pass
+
+class PluginConfigSection(BaseConfigSection):
 
     classname = options.Option(required=True)
 
@@ -16,15 +22,14 @@ class BasePluginConfigSection(BaseConfigSection):
         options.update(Plugin._options)
         return options
 
-class BasePlugin(Loggable, OptionHolder):
+class Plugin(Loggable, OptionHolder):
 
     config_section_name = 'plugin'
-    enabled = options.BooleanOption(default=True)
     
     @classmethod
     def config_section_factory(cls):
-        return super(BasePlugin, cls).config_section_factory(
-            config_class = BasePluginConfigSection,
+        return super(Plugin, cls).config_section_factory(
+            config_class = PluginConfigSection,
         )
 
     def __init__(self, controller, name, *args, **kwargs):
@@ -32,7 +37,7 @@ class BasePlugin(Loggable, OptionHolder):
         self.controller = controller
         self.name = name
         
-        super(BasePlugin, self).__init__(*args, **kwargs)
+        super(Plugin, self).__init__(*args, **kwargs)
         
         if self.enabled:
             self.logger.info('plugin loaded: %s' % self)
@@ -47,12 +52,20 @@ class BasePlugin(Loggable, OptionHolder):
         pass
 
 def create_plugins(controller, config):
+    from . import core_plugins
+    
     plugins = []
+    
+    for Plugin in core_plugins:
+        plugin = Plugin(controller, **config[Plugin.config_section_name])
+        plugins.append(plugin)
+    
     for name, plugin_conf_section in config.iter_subsection_items('plugin'):
         plugin_conf = plugin_conf_section.values.copy()
         Plugin = get_class(plugin_conf.pop('classname'))
         plugin = Plugin(controller, name, **plugin_conf)
         plugins.append(plugin)
+    
     return plugins
 
 #class Registry(object):

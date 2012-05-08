@@ -1,9 +1,11 @@
 from ..client import P175
-from ..utils.conf.section import BaseConfigSection
-from ..utils.conf import options
+from ..conf import BaseConfigSection, options
 from nose.plugins.skip import SkipTest
-from unittest2 import TestCase as BaseTestCase
 import os.path
+try:
+    from unittest2 import TestCase as BaseTestCase
+except ImportError:
+    from unittest import TestCase as BaseTestCase
 
 class ConfigSection(BaseConfigSection):
     basename = 'test'
@@ -13,10 +15,10 @@ class TestCase(BaseTestCase):
     
     @classmethod
     def setUpClass(cls):
-        from .. import conf
-        default_conf_dir = os.path.dirname(conf.DEFAULT_CONF_FILE)
+        from ..conf import fmconfig
+        default_conf_dir = os.path.dirname(fmconfig.DEFAULT_CONF_FILE)
         test_inifile = os.path.join(default_conf_dir, 'test.ini')
-        config = conf.fmconfig
+        config = fmconfig.fmconfig
         if config._files != [test_inifile] and os.path.exists(test_inifile):
             config.set_file(test_inifile)
         

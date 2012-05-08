@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-from fmanalyser.test import TestCase
-from fmanalyser.utils.conf.options import FloatOption
 from copy import copy
-from fmanalyser.utils.conf import options, OptionHolder
-from fmanalyser.utils.conf.declarative import DeclarativeOptionMetaclass
+from fmanalyser.conf import options, OptionHolder
+from fmanalyser.conf.declarative import DeclarativeOptionMetaclass
+from fmanalyser.test import TestCase
 import os
 
 class TestOptionHolder(object):
@@ -44,7 +43,7 @@ class DeclarativeOptionsTest(TestCase):
 class OptionTest(TestCase):
     
     def test_clone_option(self):
-        original = FloatOption(default=123)
+        original = options.FloatOption(default=123)
         clone = original.clone()
         clone.default = 456
         self.assertEqual(original.default, 123)

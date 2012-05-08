@@ -4,7 +4,7 @@ from .. import TestCase
 from ...models import validators
 from ...models.channel import BaseChannel
 from ...models.descriptors import ValueDescriptor
-from ...utils.conf import options
+from ...conf import options
 
 class Validator1(validators.Validator):
     

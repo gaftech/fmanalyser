@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
-from ...utils.command import VERBOSITY
-from ...utils.conf import options
-from ...utils.plugin import BasePlugin
-from ...conf import fmconfig
+from ...conf import options
+from ...plugins.base import CorePlugin
 from .mibload import populate_builder
 from pysnmp import debug #@UnresolvedImport
 from pysnmp.carrier.asynsock.dgram import udp #@UnresolvedImport
 from pysnmp.entity import engine, config #@UnresolvedImport
 from pysnmp.entity.rfc3413 import cmdrsp, context #@UnresolvedImport
+import logging
 import threading
 
-class SnmpServerPlugin(BasePlugin):
+class SnmpServerPlugin(CorePlugin):
     
     config_section_name = 'snmpd'
     
@@ -47,8 +46,9 @@ class SnmpServerPlugin(BasePlugin):
     
     def _configure(self):
         
-        verbosity = fmconfig['global']['verbosity']
-        if verbosity >= VERBOSITY.DEBUG:
+        from ...conf.fmconfig import fmconfig
+        
+        if fmconfig['global']['loglevel'] <= logging.DEBUG:
             debug.setLogger(debug.Debug('all'))
         
         # Create SNMP engine with autogenernated engineID and pre-bound

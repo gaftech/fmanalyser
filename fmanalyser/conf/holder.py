@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from ...exceptions import MissingOption, UnexpectedOption
+from ..exceptions import MissingOption, UnexpectedOption
 from .section import BaseConfigSection
 from .declarative import DeclarativeOptionMetaclass
 
@@ -33,6 +33,17 @@ class OptionHolder(object):
         classname = '%sConfigSection' % cls.config_section_name.title()
         
         return  type(classname, (config_class,), attrs)
+    
+    @classmethod
+    def from_config(cls, config, subname=None, **kwargs):
+        section = config.get_section(cls.config_section_name, subname)
+        return cls.from_config_section(section, **kwargs)
+    
+    @classmethod
+    def from_config_section(cls, section, **kwargs):
+        defaults = section.values()
+        defaults.update(kwargs)
+        return cls(**defaults)
     
     def __init__(self, **kwargs):
         

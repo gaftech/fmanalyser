@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from fmanalyser.conf import fmconfig
+from fmanalyser.conf.fmconfig import fmconfig
 from fmanalyser.models.bandscan import Bandscan
 from fmanalyser.models.signals import scan_updated
 from fmanalyser.utils.command import BaseCommand
@@ -8,7 +8,7 @@ import subprocess
 import sys
 import tempfile
 import os
-import Gnuplot
+from fmanalyser.exceptions import CommandError
 
 class Command(BaseCommand):
 
@@ -17,15 +17,17 @@ class Command(BaseCommand):
             help="lauch gnuplot visualization"),
         make_option('-f', '--ref-file', 
             help="reference scanning file location"),
-        make_option('-n', '--no-ref', action='store_true', default=False,
+        make_option('-n', '--no-ref', dest='load_ref', action='store_false', default=True,
             help="don't try to load reference scanning"),
         make_option('-r', '--store-ref', action='store_true',
-            help="save data to the scanning reference file")
+            help="save data to the scanning reference file"),
+        make_option('-o', '--output-file',
+            help="save current scan to file")
     )
     
     def alter_conf(self, config):
         if self.options.ref_file:
-            config['scan']['ref_file'] = self.options.ref_file
+            config['scan']['ref_file'] = os.path.abspath(self.options.ref_file)
         
     
     def execute(self):
@@ -35,7 +37,12 @@ class Command(BaseCommand):
         # scan object init
         self.scan = Bandscan(**fmconfig['scan'])
 
+        # config checks
+        if self.options.load_ref and not os.path.exists(self.scan.ref_file):
+            raise CommandError('reference file not found : %s' % self.scan.ref_file)
+
         # Visualization init
+        self.persist = False
         if self.options.gnuplot:
             self.init_gnuplot()
         
@@ -51,23 +58,35 @@ class Command(BaseCommand):
         if self.options.store_ref:
             self.scan.save_ref()
         
-        if self.options.gnuplot:
+        if self.options.output_file:
+            with open(self.options.output_file, 'w') as fp:
+                self.scan.dump(fp)
+            self.logger.info('file saved: %s' % self.options.output_file)
+        
+        if self.persist:
+            # TODO: make views independant
             while not self._stop.is_set() and self.gp.poll() is None:
                 self.short_sleep()
         
     def init_gnuplot(self):
+        self.persist = True
         self.gpdatafile = tempfile.NamedTemporaryFile(suffix='.fmscan', delete=True)
         self.gp_empty = True
         
-        self.gp = subprocess.Popen(['gnuplot'], stdin=subprocess.PIPE)
+        try:
+            self.gp = subprocess.Popen(['gnuplot'], stdin=subprocess.PIPE)
+        except OSError:
+            raise CommandError("can't open gnuplot, please check if it's installed")
+        self.gp.stdin.write('lower\n')
         self.gp.stdin.write('set xrange [%f:%f]\n' % (self.scan.start,
                                                     self.scan.stop))
         self.gp.stdin.write('set yrange [0:110]\n')
         
-        if not self.options.no_ref:
-            ref_file = self.scan.ref_file
-            if os.path.exists(ref_file):
-                self.gp.stdin.write("plot '%s' with lines\n" % ref_file)
+        self.load_ref = False
+        ref_file = self.scan.ref_file
+        if self.options.load_ref and os.path.exists(ref_file):
+            self.load_ref = True
+            self.gp.stdin.write("plot '%s' with lines\n" % ref_file)
         
         scan_updated.connect(self.update_gnuplot, self.scan)
         
@@ -75,10 +94,10 @@ class Command(BaseCommand):
         self.gpdatafile.write('%f %f\n' % (event.frequency, event.level))
         self.gpdatafile.flush()
         if self.gp_empty:
-            if self.options.no_ref:
-                cmd = 'plot'
-            else:
+            if self.load_ref:
                 cmd = 'replot'
+            else:
+                cmd = 'plot'
             self.gp.stdin.write("%s '%s' with lines\n" % (cmd, self.gpdatafile.name))
             self.gp_empty=False
         else:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from .. import TestCase
-from ...conf import Config
+from ...conf.fmconfig import Config
 from ...models.channel import Channel, create_config_channels
 
 class ChannelVariablesTest(TestCase):

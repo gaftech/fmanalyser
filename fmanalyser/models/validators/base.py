@@ -2,7 +2,7 @@
 """A collection of classes that define a channel expected measurements.
 """
 from ...exceptions import ValidationException
-from ...utils.conf import options, OptionHolder
+from ...conf import options, OptionHolder
 
 class Validator(OptionHolder):
 

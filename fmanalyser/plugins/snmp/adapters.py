@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from ...utils.conf import options
+from ...conf import options
 from . import render_template, OPTION_TEMPLATE, FMANALYSER_MIB_NAME
 
 class BaseOptionAdapter(object):

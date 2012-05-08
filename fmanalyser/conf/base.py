@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from .parser import ini_string_dict, ini_files_dict
+from .iniutil import ini_string_dict, ini_files_dict
 from .section import PATH_SEPARATOR, parse_full_section_name
 
 class BaseConfig(object):
@@ -61,9 +61,18 @@ class BaseConfig(object):
             name = fullname.split(PATH_SEPARATOR, 1)[1]
             yield name, self.get_section(fullname)
     
-    def get_section(self, fullname):
+    def get_section(self, name, subname=None):
+        if PATH_SEPARATOR in name:
+            fullname = name
+            basename, subname = parse_full_section_name(name)
+        elif subname is None:
+            fullname = basename = name
+        else:
+            basename = name
+            fullname = '%s%s%s' % (basename, PATH_SEPARATOR, subname)
+                
         if fullname not in self._sections:
-            basename, subname = parse_full_section_name(fullname)
+            
             try:
                 cls = next(c for c in self.section_classes if c.basename == basename)
             except StopIteration:

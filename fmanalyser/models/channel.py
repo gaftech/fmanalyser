@@ -3,7 +3,7 @@
 from . import validators, descriptors, Variable
 from ..client import RDS_MODE, MEASURING_MODE, STEREO_MODE, tasks
 from ..exceptions import ValidationException
-from ..utils.conf import options, OptionHolder, DeclarativeOptionMetaclass
+from ..conf import options, OptionHolder, DeclarativeOptionMetaclass
 from ..utils.datastructures.ordereddict import OrderedDict
 from ..utils.log import Loggable
 import threading
@@ -152,7 +152,9 @@ class Channel(BaseChannel):
         validator = validators.factory(validators.base.StrictIntValidator,
             name = 'FrequencyValidator',
             enabled = True,
-            ref = options.CarrierFrequencyOption()),
+            ref = options.CarrierFrequencyOption(
+                ini_help="Channel frequency as a floating point number in MHz\n"
+                         "If not given, the current device frequency will be used.")),
         device_mode = None,
                                                        
     )
@@ -186,9 +188,12 @@ class Channel(BaseChannel):
         validator_options = dict(ref = 4, high = 0.5, low = 0.5)
     )
     
-    rds_lock_time = options.FloatOption(default=5)
-    mes_lock_time = options.FloatOption(default=5)
-    stereo_lock_time = options.FloatOption(default=5)
+    rds_lock_time = options.FloatOption(default=5, 
+        ini_help="Time during the program sleeps, waiting for the device to acquire measurements in rds mode.")
+    mes_lock_time = options.FloatOption(default=5,
+        ini_help="Time during the program sleeps, waiting for the device to acquire measurements in measuring mode.")
+    stereo_lock_time = options.FloatOption(default=5,
+        ini_help="Time during the program sleeps, waiting for the device to acquire measurements in stereo mode.")
     
     def __str__(self):
         return self._variables['frequency'].render()

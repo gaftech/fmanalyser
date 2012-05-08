@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from . import base
 from .base import factory, Validator
-from ...utils.conf import options
+from ...conf import options
 
 class RfLevelValidator(base.RelativeThresholdValidatorMixin, Validator):
     ref = options.IntOption(null_value=-1)

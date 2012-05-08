@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from ..datastructures.ordereddict import OrderedDict
 from ConfigParser import ConfigParser
 from StringIO import StringIO
+from ..utils.datastructures import OrderedDict
 
 def parser_to_dict(parser, dict_type):
     d = dict_type()

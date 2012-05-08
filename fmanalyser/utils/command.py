@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from ..utils.log import Loggable
-from ..conf import fmconfig, VERBOSITY
+from ..conf.fmconfig import fmconfig
 import fmanalyser
 import logging
 import optparse
@@ -121,19 +121,16 @@ class BaseCommand(Loggable, Stoppable):
     
     def configure_logging(self):
         
-        verbosity = self.options.verbosity
-        if verbosity is None:
-            verbosity = fmconfig['global']['verbosity']
-        else:
-            fmconfig['global']['verbosity'] = verbosity
-        
-        level = logging.WARNING
-        if verbosity <= VERBOSITY.CRITICAL:
-            level = logging.CRITICAL
-        elif verbosity == VERBOSITY.INFO:
-            level = logging.INFO
-        elif verbosity >= VERBOSITY.DEBUG:
-            level = logging.DEBUG
+        level = fmconfig['global']['loglevel']
+        vcount = self.options.verbosity
+        if vcount is not None:
+            if vcount < 0:
+                level = logging.CRITICAL
+            elif vcount == 1:
+                level = logging.INFO
+            elif vcount >= 2:
+                level = logging.DEBUG
+            fmconfig['global']['loglevel'] = level
         
         root_logger = logging.getLogger('')
         root_logger.setLevel(level)

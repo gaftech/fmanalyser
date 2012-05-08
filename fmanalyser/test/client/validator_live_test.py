@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from .. import LiveTestCase
-from ...conf import fmconfig
+from ...conf.fmconfig import fmconfig
 from ...exceptions import ValidationException
 from ...models.channel import Channel
 import time

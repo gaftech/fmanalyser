@@ -1,18 +1,17 @@
 # -*- coding: utf-8 -*-
 
+from ..conf import options, OptionHolder
 from ..exceptions import DeviceNotFound, MultipleDevicesFound, PortLocked
-from ..utils.conf import options, OptionHolder
 from ..utils.log import Loggable
 from ..utils.parse import parse_carrier_frequency, parse_deviation_level, \
     parse_int, parse_histogram_data, parse, parse_float
-from ..utils.threads import Lockable, locking
 from copy import copy
+from fmanalyser.exceptions import BadResponseFormat, SerialError
+from serial.serialutil import SerialException
 import fcntl
 import serial
 import threading
 import time
-from fmanalyser.exceptions import BadResponseFormat, SerialError
-from serial.serialutil import SerialException
 
 MEASURING_MODE = 'mes'
 STEREO_MODE = 'stereo'
@@ -23,9 +22,14 @@ class P175(Loggable, OptionHolder):
     
     config_section_name = 'device'
     
-    port = options.Option()
-    fine_tune = options.BooleanOption(default=False)
-    use_cache = options.BooleanOption(default=False)
+    port = options.Option(ini_help="Serial port. USB-autodetection if not set.")
+    fine_tune = options.BooleanOption(default=None,
+        ini_help='Use 50 kHz frequency step')
+    high_scan_sens = options.BooleanOption(default=None,)
+    use_cache = options.BooleanOption(default=False,
+        ini_help= \
+"""Trust (or not) device statuses (like measuring mode) that are cached by the client.
+Setting this to true means that you're sure that the device is not accessed manually or by another software.""")
     
     serial_options = {
         'baudrate': 19200,
@@ -83,7 +87,11 @@ class P175(Loggable, OptionHolder):
         self._socket = socket
         
         self.logger.debug('configuring device...')
-        self.set_fine_tune(self.fine_tune)
+        # DIP witches
+        if self.fine_tune is not None:
+            self.set_fine_tune(self.fine_tune)
+        if self.high_scan_sens is not None:
+            self.set_high_scan_sensitivity(self.high_scan_sens)
         
         self.logger.info('device opened on port %s' % self._socket.port)
     
@@ -193,6 +201,13 @@ class P175(Loggable, OptionHolder):
     
     def tune_down(self):
         self._write('*-')
+    
+    def get_signal_infos(self):
+        lines = self._probe_lines('?G')
+        try:
+            return [int(l) for l in lines[1:4]]
+        except Exception, e:
+            raise BadResponseFormat('%s: %s' % (e.__class__.__name__, e))
     
     def get_rf(self):
         return self._probe_line('?U', formatter=parse_float)

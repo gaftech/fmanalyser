@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-from fmanalyser.utils.conf.declarative import DeclarativeOptionMetaclass
-from fmanalyser.exceptions import MissingOption, UnexpectedOption,\
-    MissingSection
+from ..exceptions import MissingOption, UnexpectedOption, MissingSection
+from .declarative import DeclarativeOptionMetaclass
 PATH_SEPARATOR = ':'
 
 def parse_full_section_name(fullname):
@@ -20,6 +19,7 @@ class BaseConfigSection(object):
     required = False
     allow_extra_options = True
     ignore_extra_options = False
+    ini_help = ''
 
     def __init__(self, source, subname=None, dict_type=dict):
         self._source = source
@@ -44,6 +44,10 @@ class BaseConfigSection(object):
         if self._values is None:
             self._values = self._get_values()
         return self._values
+    
+    @property
+    def in_source(self):
+        return self.name in self._source
     
     def get_options(self):
         return self._options
