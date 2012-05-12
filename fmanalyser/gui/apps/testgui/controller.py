@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-from fmanalyser import client
 from fmanalyser.gui.apps.testgui import view
 from fmanalyser.models import channel
-from fmanalyser.models.analyser import Analyser
 from fmanalyser.models.signals import value_changed
 from fmanalyser.utils.command import BaseCommand
 from fmanalyser.utils.log import Loggable
@@ -12,13 +10,16 @@ import sys
 import threading
 import time
 import wx
+from fmanalyser.device.controllers.p175 import P175Controller
+from fmanalyser import device
 
 class Controller(Loggable):
     
     worker_sleep_time = 0.1
     
     def __init__(self):
-        self._client_worker = client.Worker(device=client.device.P175())
+        self._device_controller = P175Controller()
+        self._device_worker = device.Worker(controller=self._device_controller)
         self._thread = threading.Thread(target=self._worker)
         self._lock = threading.Lock()
         self._stop = threading.Event()
@@ -28,21 +29,19 @@ class Controller(Loggable):
             mes_lock_time = 0,
             stereo_lock_time = 0,
         )
-        self._analyser = Analyser(client_worker = self._client_worker, channels=[self._channel])
-        
         self._app = view.App(controller=self)
         
     def run(self):
         try:
             self._thread.start()
-            self._client_worker.run()
+            self._device_worker.run()
             self._app.MainLoop()
         finally:
             self._stop.set()
             self._thread.join(1)
             if self._thread.is_alive():
                 self.logger.warning("thread still running")
-            self._client_worker.stop()
+            self._device_worker.stop()
     
     @property
     def channel(self):
@@ -55,7 +54,7 @@ class Controller(Loggable):
             while not self._stop.is_set():
                 with self._lock:
                     self._update_channel_variables()
-                    self._analyser.enqueue_updates().wait(blocking=False)
+                    self._channel.enqueue_updates().wait(blocking=False)
                 time.sleep(self.worker_sleep_time)
         except Exception:
             exc_info = sys.exc_info()
@@ -66,7 +65,7 @@ class Controller(Loggable):
         for variable in self._channel.get_variables():
             # TODO: it may be resource expensive
             variable.enabled = bool(liveReceivers(getAllReceivers(sender=variable)))
-            
+    
     def add_channel_variable_listener(self, listener, value_key):
         with self._lock:
             # TODO: maybe implement our own widget notification system, lighter
@@ -87,18 +86,18 @@ class Controller(Loggable):
         
     def dirty_tune_up(self):
         # TODO : quick done, no event management !!!
-        self._client_worker.enqueue('tune_up')  
+        self._device_worker.enqueue('tune_up')  
         
     def dirty_tune_down(self):
-        self._client_worker.enqueue('tune_down')
+        self._device_worker.enqueue('tune_down')
     
     def tune_up(self):
-        self._client_worker.enqueue(self._tune_up_down(up=True))
+        self._device_worker.enqueue(self._tune_up_down(up=True))
 #        with self._lock:
 #            self._tune_up_down(up=True)
 
     def tune_down(self):
-        self._client_worker.enqueue(self._tune_up_down(up=False))
+        self._device_worker.enqueue(self._tune_up_down(up=False))
 #        with self._lock:
 #            self._tune_up_down(up=False)
         
@@ -108,7 +107,7 @@ class Controller(Loggable):
             step = - step
         current = self._channel.frequency
         self._channel.frequency = current + step
-        self._client_worker.enqueue('tune')
+        self._device_worker.enqueue('tune')
         
         
         

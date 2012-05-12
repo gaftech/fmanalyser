@@ -1,6 +1,5 @@
-from ..client import P175
 from ..conf import BaseConfigSection, options
-from nose.plugins.skip import SkipTest
+from fmanalyser.conf.source import IniFileSource
 import os.path
 try:
     from unittest2 import TestCase as BaseTestCase
@@ -19,8 +18,11 @@ class TestCase(BaseTestCase):
         default_conf_dir = os.path.dirname(fmconfig.DEFAULT_CONF_FILE)
         test_inifile = os.path.join(default_conf_dir, 'test.ini')
         config = fmconfig.fmconfig
-        if config._files != [test_inifile] and os.path.exists(test_inifile):
-            config.set_file(test_inifile)
+        if config.loaded:
+            if os.path.exists(test_inifile):
+                assert config.source.files == [test_inifile] 
+        else:
+            config.source = IniFileSource(test_inifile)
         
         cls.conf = config['test']
 
@@ -29,23 +31,7 @@ class TestCase(BaseTestCase):
         self.assertLessEqual(f, 108000)
         self.assertGreaterEqual(f, 87500)
 
-class LiveTestCase(TestCase):
-    
-    @classmethod
-    def setUpClass(cls):
-        super(LiveTestCase, cls).setUpClass()
-        if not cls.conf['live_tests']:
-            raise SkipTest('%s : live tests disabled' % cls.__name__)
-        cls.client = P175()
-    
-    @classmethod
-    def tearDownClass(cls):
-        cls.client.close()
-    
-#    def setUp(self):
-#        super(LiveTestCase, self).setUp()
-#        if not self.conf['live_tests']:
-#            self.skipTest('live tests disabled')
+
     
     
     

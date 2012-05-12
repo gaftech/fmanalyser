@@ -1,34 +1,38 @@
 # -*- coding: utf-8 -*-
 from . import tasks
-from .. import settings
-from ..exceptions import QueueFull
-from ..utils.log import Loggable
-from ..utils.threads import Stoppable
+from fmanalyser.exceptions import DeviceError, QueueFull
+from fmanalyser.utils.log import Loggable
+from fmanalyser.utils.threads import Stoppable
 import collections
 import sys
 import threading
-from serial.serialutil import SerialException
-from fmanalyser.exceptions import DeviceNotFound, DeviceError
 
 class Worker(Loggable, Stoppable):
     
-    empty_queue_timeout = settings.WATCHER_SLEEP_TIME
     max_queue_size = 100
     device_error_sleep = 1
     
     def __init__(self, device):
+        
         super(Worker, self).__init__()
-        self._client = device
+        
+        # Options
+        from fmanalyser.conf.fmconfig import fmconfig
+        self.empty_queue_timeout = fmconfig['global']['empty_queue_timeout']
+        
+        self._device = device
         self.exc_info = None
         self._queue = collections.deque()
         self._lock = threading.RLock()
         self._thread = threading.Thread(target=self._worker)
         self._thread_started = False
         self._current_task = None
+        
+        
     
     def _worker(self):
         try:
-            self.logger.info('acquiring data from device %s' % self._client)
+            self.logger.info('acquiring data from device %s' % self._device)
             while not self._stop.is_set():
                 if self._current_task is None and len(self._queue):
                     self._current_task = self._queue.popleft()
@@ -41,7 +45,7 @@ class Worker(Loggable, Stoppable):
                     except DeviceError, e:
                         self.logger.info('device error while performing task %s' % self._current_task)
                         self.logger.warning('device error: %s: %s' % (e.__class__.__name__, e))
-                        self._client.close()
+                        self._device.close()
                         self.logger.info('retrying device probe in %s s' % self.device_error_sleep)
                         self._stop.wait(self.device_error_sleep)
         except Exception:
@@ -51,12 +55,16 @@ class Worker(Loggable, Stoppable):
             if self._current_task is not None and not self._current_task.stopped:
                 self.logger.warning('stopping unperformed task  : %s' % self._current_task)
                 self._current_task.stop()
-            self._client.close()
-            self.logger.info('device released : %s' % self._client)
+            self._device.close()
+            self.logger.info('device released : %s' % self._device)
     
     @property
-    def client(self):
-        return self._client
+    def device(self):
+        return self._device
+    
+    @property
+    def empty_queue(self):
+        return not len(self._queue)
     
     def is_alive(self):
         return self._thread.is_alive()
@@ -100,15 +108,9 @@ class Worker(Loggable, Stoppable):
             raise QueueFull('worker queue size : %s' % len(self._queue))
         task = task_class(*args, **kwargs)
         if self._stop.is_set():
-#            raise RuntimeError('can not enqueue task while stopping')
             self.logger.warning('can not enqueue task while stopping : %s' % task)
             return task
         return self.enqueue_task(task)
-#        with self._lock:
-#            
-#            self._queue.append(task)
-#            self.logger.debug('task enqueued (%s) : %s' % (len(self._queue), task))
-#        return task
     
     def enqueue_task(self, task):
         with self._lock:

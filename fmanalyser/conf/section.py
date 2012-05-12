@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from ..exceptions import MissingOption, UnexpectedOption, MissingSection
 from .declarative import DeclarativeOptionMetaclass
+from fmanalyser.exceptions import MissingSection
 PATH_SEPARATOR = ':'
 
 def parse_full_section_name(fullname):
@@ -21,10 +21,9 @@ class BaseConfigSection(object):
     ignore_extra_options = False
     ini_help = ''
 
-    def __init__(self, source, subname=None, dict_type=dict):
+    def __init__(self, source, subname=None):
         self._source = source
         self._subname = subname
-        self._dict = dict_type
         self._values = None
 
     def __getitem__(self, key):
@@ -40,48 +39,24 @@ class BaseConfigSection(object):
         return '%s%s%s' % (self.basename, PATH_SEPARATOR, self._subname)
     
     @property
-    def values(self):
-        if self._values is None:
-            self._values = self._get_values()
-        return self._values
-    
+    def subname(self):
+        return self._subname
+
     @property
     def in_source(self):
         return self.name in self._source
     
+    @property
+    def values(self):
+        if self._values is None:
+            self._values = self._get_values()
+        return self._values
+
+    def _get_values(self):
+        if self.required and not self.in_source:
+            raise MissingSection(self)
+        values = self._source.clean_section(self)
+        return values
+    
     def get_options(self):
         return self._options
-        
-    def _get_values(self):
-        
-        if self.required and self.name not in self._source:
-            raise MissingSection(self.name)
-        
-        # Merging base section and subsection values
-        raw_values = self._dict()
-        if self._subname is not None and self.basename in self._source:
-            raw_values.update(self._source[self.basename])
-        if self.name in self._source:
-            raw_values.update(self._source[self.name])
-        
-        values = self._dict()
-        for k, option in self.get_options().items():
-            try:
-                raw = raw_values.pop(k)
-            except KeyError:
-                if option.required:
-                    raise MissingOption("Missing required option from section %s : %s" % (self.name, k))
-                value = option.default
-            else:
-                value = option.clean(raw)
-            values[k] = value      
-        if len(raw_values):
-            if not self.allow_extra_options:
-                raise UnexpectedOption("Unexpected options in section %s : %s" % (
-                        self.name, ', '.join(raw_values.keys())))
-            if not self.ignore_extra_options:
-                values.update(raw_values)
-        return values
-
-
-

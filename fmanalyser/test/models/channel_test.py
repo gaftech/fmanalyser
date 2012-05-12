@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from .. import TestCase
 from ...conf.fmconfig import Config
-from ...models.channel import Channel, create_config_channels
+from ...models.channel import Channel
+from fmanalyser.conf.source import IniStringSource
 
 class ChannelVariablesTest(TestCase):
     
@@ -26,8 +27,10 @@ rds_high = 1
 """
 #        self.default_conf = Config()
         self.default_channel = Channel(frequency=88000)
-        self.test_conf = Config(raw_data=self.ini)
-        channels = create_config_channels(config=self.test_conf)
+        self.test_conf = Config(source=IniStringSource(self.ini))
+        channels = []
+        for section in self.test_conf.get_section_or_subsections('channel'):
+            channels.append(Channel.from_config_section(section))
         self.assertEqual(len(channels), 1)
         self.assertEqual(channels[0].name, 'testchannel')
         self.test_channel = channels[0]

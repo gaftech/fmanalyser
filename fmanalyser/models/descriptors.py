@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from . import validators
-from ..client import MEASURING_MODE
 import inspect
 
 class ValueDescriptor(object):
@@ -13,7 +12,6 @@ class ValueDescriptor(object):
                  verbose_name = None,
                  short_key = None,
                  unit = None,
-                 device_mode = MEASURING_MODE,
                  validator = None,
                  validator_class = validators.Validator,
                  validator_options = (),
@@ -32,7 +30,6 @@ class ValueDescriptor(object):
         
         # private attributes from arguments
         self._verbose_name = verbose_name
-        self._device_mode = device_mode
         if inspect.isclass(validator_class):
             self._validator_bases = (validator_class,)
         else:

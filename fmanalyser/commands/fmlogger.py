@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from ..client.device import P175
-from ..client.worker import Worker
-from ..models.analyser import Analyser
+from ..device import Worker
 from ..models.channel import Channel
 from ..models.signals import value_changed
 from ..utils.command import BaseCommand
@@ -11,6 +9,7 @@ from optparse import OptionGroup, OptionConflictError
 import logging
 import sys
 import time
+from fmanalyser.device.controllers.p175 import P175Controller
 
 class Command(BaseCommand):
     
@@ -69,12 +68,12 @@ class Command(BaseCommand):
         
         value_changed.connect(self._on_value_changed)
         channel = self._make_channel()
-        worker = Worker(device=P175())
+        controller = P175Controller()
+        worker = Worker(controller=controller)
         try:
             worker.run()
-            analyser = Analyser(client_worker=worker, channels=[channel])
             while worker.is_alive():
-                task = analyser.enqueue_updates()
+                task = controller.enqueue_channel_update(channel)
                 task.wait(blocking=False, timeout=2)
                 time.sleep(self.options.sleep)            
         finally:

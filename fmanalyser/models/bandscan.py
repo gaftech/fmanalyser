@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from fmanalyser.client.tasks import BaseTask
+from fmanalyser.device import BaseTask
 from fmanalyser.exceptions import BadOptionValue
 from fmanalyser.models.signals import scan_updated
 from fmanalyser.utils import freqlist
@@ -12,6 +12,8 @@ import os
 from fmanalyser.utils.log import Loggable
 import fmanalyser
 import datetime
+from fmanalyser.conf.holder import EnableableOptionHolder,\
+    EnableableSectionOptionHolder
 
 class UpdateTask(BaseTask):
     
@@ -37,23 +39,16 @@ class UpdateTask(BaseTask):
             self.scan.update(f,l)
             f += self.scan.step
 
-class Bandscan(Loggable, OptionHolder):
+class Bandscan(Loggable, EnableableSectionOptionHolder):
     
     config_section_name = 'scan'
     
-    enabled = options.BooleanOption(default=None)
     start = options.CarrierFrequencyOption(default=87500)
     stop = options.CarrierFrequencyOption(default=108000)
     step = options.IntOption(default=100)
     partial = options.IntOption(default=10)
     acq_delay = options.FloatOption(default=3)
     ref_file = options.DataFileOption(default='scan.ref')
-    
-    @classmethod
-    def from_config_section(cls, section, **kwargs):
-        if section['enabled'] is None:
-            kwargs['enabled'] = section.in_source
-        return super(Bandscan, cls).from_config_section(**kwargs)
     
     def __init__(self, **kwargs):
         

@@ -9,5 +9,6 @@ using the [section:subsection] syntax.
 """
 from .base import BaseConfig
 from .declarative import DeclarativeOptionMetaclass
-from .holder import OptionHolder
+from .holder import OptionHolder, EnableableSectionOptionHolder, EnableableOptionHolder
 from .section import BaseConfigSection
+from .source import IniFileSource

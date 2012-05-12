@@ -1,28 +1,33 @@
 # -*- coding: utf-8 -*-
-from ..conf import OptionHolder, BaseConfigSection, options
-from ..exceptions import AlreadyRegistered
-from ..utils.datastructures.ordereddict import OrderedDict
-from ..utils.import_tools import get_class
-from ..utils.log import Loggable
+from fmanalyser.conf.holder import EnableableSectionOptionHolder
+from fmanalyser.conf import BaseConfigSection, options
+from fmanalyser.utils.log import Loggable
+from fmanalyser.utils.import_tools import get_class
 
-class BasePlugin(Loggable, OptionHolder):
-    enabled = options.BooleanOption(default=True)
+class BasePlugin(Loggable, EnableableSectionOptionHolder):
+    pass
 
 class CorePlugin(BasePlugin):
     pass
 
 class PluginConfigSection(BaseConfigSection):
 
-    classname = options.Option(required=True)
+    cls = options.Option(required=True,
+        ini_help="Full python class name (e.g. myapp.mymodule.MyPluginClass)")
+
+    ini_help = """
+Base config for all user defined plugins.
+It must be extended for each plugin by creating a section named [plugin:<your_plugin_name>].
+"""
 
     def get_options(self):
         options = self._options.copy()
-        classname = self._source[self.name]['classname']
+        classname = self._source[self.name]['cls']
         Plugin = get_class(classname)
         options.update(Plugin._options)
         return options
 
-class Plugin(Loggable, OptionHolder):
+class Plugin(BasePlugin):
 
     config_section_name = 'plugin'
     
@@ -32,12 +37,12 @@ class Plugin(Loggable, OptionHolder):
             config_class = PluginConfigSection,
         )
 
-    def __init__(self, controller, name, *args, **kwargs):
+    def __init__(self, controller, name=None, **kwargs):
         
         self.controller = controller
         self.name = name
         
-        super(Plugin, self).__init__(*args, **kwargs)
+        super(Plugin, self).__init__(name=name, **kwargs)
         
         if self.enabled:
             self.logger.info('plugin loaded: %s' % self)
@@ -62,7 +67,7 @@ def create_plugins(controller, config):
     
     for name, plugin_conf_section in config.iter_subsection_items('plugin'):
         plugin_conf = plugin_conf_section.values.copy()
-        Plugin = get_class(plugin_conf.pop('classname'))
+        Plugin = get_class(plugin_conf.pop('cls'))
         plugin = Plugin(controller, name, **plugin_conf)
         plugins.append(plugin)
     
@@ -80,7 +85,7 @@ def create_plugins(controller, config):
 #    def populate_from_config(self, config):
 #        for name, plugin_conf_section in config.iter_subsection_items('plugin'):
 #            plugin_conf = plugin_conf_section.values.copy()
-#            Plugin = get_class(plugin_conf.pop('classname'))
+#            Plugin = get_class(plugin_conf.pop('cls'))
 #            plugin = Plugin(**plugin_conf)
 #            self.register(name, plugin)
 #       

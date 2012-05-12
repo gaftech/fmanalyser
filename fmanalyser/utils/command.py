@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
-from ..utils.log import Loggable
 from ..conf.fmconfig import fmconfig
+from ..utils.log import Loggable
+from fmanalyser.conf.source import IniFileSource
+from fmanalyser.exceptions import CommandError
+from fmanalyser.utils.threads import Stoppable
 import fmanalyser
 import logging
 import optparse
-import signal
-import threading
 import os.path
-from fmanalyser.exceptions import CommandError
+import signal
 import sys
-from fmanalyser import client
-from fmanalyser.settings import WATCHER_SLEEP_TIME
-from fmanalyser.utils.threads import Stoppable
+import threading
 
 class BaseCommand(Loggable, Stoppable):
     
@@ -84,7 +83,7 @@ class BaseCommand(Loggable, Stoppable):
         self.options, self.args = self.parser.parse_args(argv)
         
         if self.options.config_file is not None:
-            fmconfig.set_file(os.path.abspath(self.options.config_file))
+            fmconfig.source = IniFileSource(os.path.abspath(self.options.config_file))
         
         self.alter_conf(fmconfig)
         
@@ -99,8 +98,6 @@ class BaseCommand(Loggable, Stoppable):
         except CommandError, e:
             self.logger.critical(str(e))
             sys.exit(e.errno)
-        finally:
-            self.stop_worker()
     
     def alter_conf(self, config):
         """Hook method called to alter the :attr:`fmconfig` object once its source data have been set"""
@@ -113,11 +110,11 @@ class BaseCommand(Loggable, Stoppable):
     def stop(self, signal, frame):
         self.logger.info('stopping on signal %s' % signal)
         self._stop.set()
-        self.stop_worker()
-
-    def stop_worker(self):
-        if self.worker is not None and not self.worker.stopped:
-            self.worker.stop()
+#        self.stop_worker()
+#
+#    def stop_worker(self):
+#        if self.worker is not None and not self.worker.stopped:
+#            self.worker.stop()
     
     def configure_logging(self):
         
@@ -142,35 +139,27 @@ class BaseCommand(Loggable, Stoppable):
         
         root_logger.addHandler(stderr_handler)
     
-    # Helpers for inherited commands
-    @property
-    def device(self):
-        return self._device
-    
-    @property
-    def worker(self):
-        return self._worker
-    
-    def init_device(self):
-        assert self._device is None
-        self._device = client.P175(**fmconfig['device'])
-    
-    def init_worker(self):
-        assert self._worker is None
-        if self._device is None:
-            self.init_device()
-        self._worker = client.Worker(device=self.device)
+#    # Helpers for inherited commands
+#    @property
+#    def device(self):
+#        return self._device
+#    
+#    @property
+#    def worker(self):
+#        return self._worker
+#    
+#    def init_device(self):
+#        assert self._device is None
+#        self._device = client.P175(**fmconfig['device'])
+#    
+#    def init_worker(self):
+#        assert self._worker is None
+#        if self._device is None:
+#            self.init_device()
+#        self._worker = device.Worker(device=self.device)
+#        
+#    def start_worker(self):
+#        if self._worker is None:
+#            self.init_worker()
+#        self._worker.run()
         
-    def start_worker(self):
-        if self._worker is None:
-            self.init_worker()
-        self._worker.run()
-        
-#    def short_sleep(self):
-#        self._stop.wait(WATCHER_SLEEP_TIME)
-    
-    
-    
-        
-
-

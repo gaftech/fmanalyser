@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from ..utils.log import Loggable
-from ..utils.threads import Stoppable
 from fmanalyser.exceptions import Timeout
+from fmanalyser.utils.log import Loggable
+from fmanalyser.utils.threads import Stoppable
 
 class BaseTask(Loggable, Stoppable):
     
@@ -9,6 +9,10 @@ class BaseTask(Loggable, Stoppable):
         super(BaseTask, self).__init__()
         self._done = False
         self._retval = None
+    
+    @property
+    def done(self):
+        return self._done
     
     def perform(self, worker):
         try:

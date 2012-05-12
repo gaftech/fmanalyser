@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from .iniutil import ini_string_dict, ini_files_dict
 from .section import PATH_SEPARATOR, parse_full_section_name
 
 class BaseConfig(object):
@@ -9,43 +8,28 @@ class BaseConfig(object):
     #: The handled :class:`BaseConfigSection` classes 
     section_classes = ()
     
-    def __init__(self, files=None, raw_data=None, ):
-        self._source = None
-        self.set_source(files, raw_data)
-        self._parser = None
-        self._sections = {}
+    def __init__(self, source=None):
+        self._source = source
+        self._sections = None
 
     def __getitem__(self, key):
         return self.get_section(key).values
     
-    def set_file(self, path):
-        self.set_source(files=[path])
-    
-    def set_source(self, files=None, raw_data=None):
-        if self._source is not None:
-            raise RuntimeError("can't change config data source because data is already loaded")
-        if isinstance(files, basestring):
-            files = [files]
-        self._files = files
-        self._raw_data = raw_data
-    
-    @property
-    def source(self):
-        """Uncleaned values from source files or raw data.
-        
-        Defaults values are not included.
-        """
+    def _get_source(self):
         if self._source is None:
-            self._load_source()
+            raise RuntimeError('No source defined')
         return self._source
     
-    def _load_source(self):
-        if self._raw_data is not None:
-            self._source = ini_string_dict(self._raw_data)
-        elif self._files is not None:
-            self._source = ini_files_dict(self._files)
-        else:
-            raise ValueError('Missing data source')
+    def _set_source(self, source):
+        if self._sections is not None:
+            raise RuntimeError('Source already loaded')
+        self._source = source
+    
+    source = property(_get_source, _set_source)
+    
+    @property
+    def loaded(self):
+        return self._source is not None
     
     def get_subsection_fullnames(self, basename):
         return [name for name in self.source
@@ -55,12 +39,18 @@ class BaseConfig(object):
         return [name.split(PATH_SEPARATOR, 1)[1] for name in self.source
                 if name.startswith('%s%s' % (basename, PATH_SEPARATOR))]
     
+    def get_subsections(self, basename):
+        return [self.get_section(fullname)
+                for fullname in self.get_subsection_fullnames(basename)]
     
     def iter_subsection_items(self, basename):
         for fullname in self.get_subsection_fullnames(basename):
             name = fullname.split(PATH_SEPARATOR, 1)[1]
             yield name, self.get_section(fullname)
     
+    def get_section_or_subsections(self, basename):
+        return self.get_subsections(basename) or [self.get_section(basename)]
+                
     def get_section(self, name, subname=None):
         if PATH_SEPARATOR in name:
             fullname = name
@@ -70,9 +60,11 @@ class BaseConfig(object):
         else:
             basename = name
             fullname = '%s%s%s' % (basename, PATH_SEPARATOR, subname)
+
+        if self._sections is None:
+            self._sections = {}
                 
         if fullname not in self._sections:
-            
             try:
                 cls = next(c for c in self.section_classes if c.basename == basename)
             except StopIteration:

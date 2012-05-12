@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from ..conf import options, OptionHolder
-from ..exceptions import DeviceNotFound, MultipleDevicesFound, PortLocked
-from ..utils.log import Loggable
-from ..utils.parse import parse_carrier_frequency, parse_deviation_level, \
-    parse_int, parse_histogram_data, parse, parse_float
 from copy import copy
-from fmanalyser.exceptions import BadResponseFormat, SerialError
+from fmanalyser.conf import options
+from fmanalyser.device.drivers.base import Device
+from fmanalyser.exceptions import BadResponseFormat, SerialError, DeviceNotFound, \
+    MultipleDevicesFound, PortLocked
+from fmanalyser.utils.parse import parse, parse_carrier_frequency, parse_float, \
+    parse_deviation_level, parse_int, parse_histogram_data
 from serial.serialutil import SerialException
 import fcntl
 import serial
@@ -18,9 +18,7 @@ STEREO_MODE = 'stereo'
 RDS_MODE = 'rds'
 MODE_CHOICES = (MEASURING_MODE, RDS_MODE, STEREO_MODE)
 
-class P175(Loggable, OptionHolder):
-    
-    config_section_name = 'device'
+class P175(Device):
     
     port = options.Option(ini_help="Serial port. USB-autodetection if not set.")
     fine_tune = options.BooleanOption(default=None,

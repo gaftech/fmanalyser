@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from ..exceptions import Timeout
-from .. import settings
 import threading
 import time
 from functools import wraps
@@ -9,6 +8,9 @@ class Stoppable(object):
     
     def __init__(self, *args, **kwargs):
         self._stop = threading.Event()
+        
+        from fmanalyser.conf.fmconfig import fmconfig
+        self.short_sleep_time = fmconfig['global']['watcher_sleep_time']
     
     @property
     def stopped(self):
@@ -24,7 +26,7 @@ class Stoppable(object):
             pass
 
     def short_sleep(self):
-        self._stop.wait(settings.WATCHER_SLEEP_TIME)
+        self._stop.wait(self.short_sleep_time)
 
     def wait(self, timeout=None, blocking=True):
         if blocking:
