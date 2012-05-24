@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from fmanalyser.conf.fmconfig import fmconfig
+from fmanalyser.conf import fmconfig
 from fmanalyser.device.controllers import create_controllers
 from fmanalyser.device.worker.tasks import Sleep
 from fmanalyser.exceptions import CommandError
@@ -18,7 +18,7 @@ class Command(BaseCommand):
     
     def stop(self, *args, **kwargs):
         super(Command, self).stop(*args, **kwargs)
-        self._stop_worker()
+        self._stop_workers()
     
     def execute(self):
         self.controllers = create_controllers(fmconfig)

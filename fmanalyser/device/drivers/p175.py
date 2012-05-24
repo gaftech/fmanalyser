@@ -56,7 +56,6 @@ Setting this to true means that you're sure that the device is not accessed manu
         super(P175, self).__init__(*args, **kwargs)
         self._socket = None
         self._reset_cache()
-        self._lock = threading.Lock()
     
     def _reset_cache(self):
         self._frequency = None
@@ -69,7 +68,7 @@ Setting this to true means that you're sure that the device is not accessed manu
             self._open()
         return self._socket
     
-    def _open(self, timeout=1):
+    def _open(self):
         
         self.logger.debug('opening serial port...')
 
@@ -194,6 +193,9 @@ Setting this to true means that you're sure that the device is not accessed manu
     #: alias for :meth:`set_frequency`
     tune = set_frequency
     
+    def tune_hz(self, f):
+        self.tune(int(f/1000))
+    
     def tune_up(self):
         self._write('*+')
     
@@ -207,8 +209,12 @@ Setting this to true means that you're sure that the device is not accessed manu
         except Exception, e:
             raise BadResponseFormat('%s: %s' % (e.__class__.__name__, e))
     
-    def get_rf(self):
-        return self._probe_line('?U', formatter=parse_float)
+    def get_rf(self, fast=True):
+        if fast:
+            return self.get_signal_infos()[0]
+        else:
+            return self._probe_line('?U', formatter=parse_float)
+        
     
     def get_quality(self):
         return self._probe_line('?Q', formatter=parse)
@@ -291,7 +297,7 @@ Setting this to true means that you're sure that the device is not accessed manu
         self.set_mode(STEREO_MODE)
 
     def set_mode(self, mode, force=False):
-        if force or self._mode != mode:
+        if force or not self.use_cache or self._mode != mode:
             cmd = {
                 MEASURING_MODE: '*E',
                 RDS_MODE: '*D',
@@ -326,14 +332,14 @@ Setting this to true means that you're sure that the device is not accessed manu
     def set_high_scan_sensitivity(self, high=True, **kwargs):
         self._set_dip_switch(3, high, **kwargs)
     
-    def _set_dip_switch(self, switch, state, save=True, force=False):
+    def _set_dip_switch(self, switch, state, save=False, force=False):
         state = int(state)
         assert state in (0,1)
-        if force or self._switches[switch] != state:
+        if force or not self.use_cache or self._switches[switch] != state :
             self._write('DIP%s:%s*X' % (switch, state))
-        self._switches[switch] = state
-        if save:
-            self.save_to_eeprom()
+            self._switches[switch] = state
+            if save:
+                self.save_to_eeprom()
         
     def set_lcd_page(self, n):
         self._write('*%s' % n)

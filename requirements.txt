@@ -10,3 +10,5 @@ sphinx
 redis
 # snmp features
 pysnmp >= 4.2.2
+# Visualisation tools
+matplotlib

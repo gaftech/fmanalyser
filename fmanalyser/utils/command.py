@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from ..conf.fmconfig import fmconfig
 from ..utils.log import Loggable
+from fmanalyser.conf import fmconfig, settings
 from fmanalyser.conf.source import IniFileSource
 from fmanalyser.exceptions import CommandError
 from fmanalyser.utils.threads import Stoppable
@@ -10,7 +10,6 @@ import optparse
 import os.path
 import signal
 import sys
-import threading
 
 class BaseCommand(Loggable, Stoppable):
     
@@ -33,8 +32,8 @@ class BaseCommand(Loggable, Stoppable):
     epilog = None
     
     def __init__(self):
+        super(BaseCommand, self).__init__()
         self.name = self.__module__.split('.').pop()
-        self._stop = threading.Event()
         self._worker = None
         self._device = None
     
@@ -98,6 +97,8 @@ class BaseCommand(Loggable, Stoppable):
         except CommandError, e:
             self.logger.critical(str(e))
             sys.exit(e.errno)
+        finally:
+            self.close()
     
     def alter_conf(self, config):
         """Hook method called to alter the :attr:`fmconfig` object once its source data have been set"""
@@ -105,20 +106,18 @@ class BaseCommand(Loggable, Stoppable):
     
     def connect_signals(self):
         for sig in (signal.SIGTERM, signal.SIGINT):
-            signal.signal(sig, self.stop)
+            signal.signal(sig, self.stop_on_signal)
     
-    def stop(self, signal, frame):
+    def stop_on_signal(self, signal, frame):
         self.logger.info('stopping on signal %s' % signal)
-        self._stop.set()
-#        self.stop_worker()
-#
-#    def stop_worker(self):
-#        if self.worker is not None and not self.worker.stopped:
-#            self.worker.stop()
+        self.stop()
+    
+    def close(self):
+        """Hook to perform necessary stuffs on normal or abnormal exit"""
     
     def configure_logging(self):
         
-        level = fmconfig['global']['loglevel']
+        level = settings.loglevel
         vcount = self.options.verbosity
         if vcount is not None:
             if vcount < 0:
@@ -138,28 +137,3 @@ class BaseCommand(Loggable, Stoppable):
         ))
         
         root_logger.addHandler(stderr_handler)
-    
-#    # Helpers for inherited commands
-#    @property
-#    def device(self):
-#        return self._device
-#    
-#    @property
-#    def worker(self):
-#        return self._worker
-#    
-#    def init_device(self):
-#        assert self._device is None
-#        self._device = client.P175(**fmconfig['device'])
-#    
-#    def init_worker(self):
-#        assert self._worker is None
-#        if self._device is None:
-#            self.init_device()
-#        self._worker = device.Worker(device=self.device)
-#        
-#    def start_worker(self):
-#        if self._worker is None:
-#            self.init_worker()
-#        self._worker.run()
-        

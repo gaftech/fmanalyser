@@ -11,7 +11,7 @@ import threading
 
 class SnmpServerPlugin(CorePlugin):
     
-    config_section_name = 'snmpd'
+    section_name = 'snmpd'
     
     ipv4 = options.BooleanOption(default=True)
     host = options.Option(default='127.0.0.1')
@@ -46,9 +46,9 @@ class SnmpServerPlugin(CorePlugin):
     
     def _configure(self):
         
-        from ...conf.fmconfig import fmconfig
+        from fmanalyser.conf import settings
         
-        if fmconfig['global']['loglevel'] <= logging.DEBUG:
+        if settings.loglevel <= logging.DEBUG:
             debug.setLogger(debug.Debug('all'))
         
         # Create SNMP engine with autogenernated engineID and pre-bound

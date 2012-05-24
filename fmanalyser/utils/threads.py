@@ -3,32 +3,21 @@ from ..exceptions import Timeout
 import threading
 import time
 from functools import wraps
+from fmanalyser.conf import settings
 
 class Stoppable(object):
     
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         self._stop = threading.Event()
-        
-        from fmanalyser.conf.fmconfig import fmconfig
-        self.short_sleep_time = fmconfig['global']['watcher_sleep_time']
     
     @property
     def stopped(self):
         return self._stop.is_set()
     
-    def stop(self, *args, **kwargs):
+    def stop(self):
         self._stop.set()
 
-    def sleep(self, timeout=None, blocking=True):
-        try:
-            self.wait(timeout, blocking)
-        except Timeout:
-            pass
-
-    def short_sleep(self):
-        self._stop.wait(self.short_sleep_time)
-
-    def wait(self, timeout=None, blocking=True):
+    def wait(self, timeout=None, blocking=False):
         if blocking:
             self._wait_blocking(timeout)
         else:
@@ -40,13 +29,21 @@ class Stoppable(object):
         while not self._stop.is_set():
             if timeout is not None and time.time() > time_limit:
                 raise Timeout(self)
-            self.short_sleep()
-#            time.sleep(settings.WATCHER_SLEEP_TIME)
+            time.sleep(settings.watcher_sleep_time)
 
     def _wait_blocking(self, timeout):
         self._stop.wait(timeout)
         if not self._stop.is_set():
             raise Timeout(self)
+
+    def sleep(self, timeout, blocking=False):
+        try:
+            self.wait(timeout, blocking)
+        except Timeout:
+            pass
+
+    def short_sleep(self, blocking=False):
+        self.sleep(settings.watcher_sleep_time, blocking)
 
 class Lockable(object):
     

@@ -2,11 +2,12 @@
 
 from . import validators, descriptors, Variable
 from ..exceptions import ValidationException
-from ..conf import options, OptionHolder, DeclarativeOptionMetaclass
+from ..conf import options
 from ..utils.datastructures.ordereddict import OrderedDict
 from ..utils.log import Loggable
 import threading
-from fmanalyser.conf.holder import EnableableSectionOptionHolder
+from fmanalyser.conf.declarative import DeclarativeOptionMetaclass
+from fmanalyser.conf.holder import EnableableOptionHolder
 
 class ChannelBase(DeclarativeOptionMetaclass):
     
@@ -33,7 +34,7 @@ class ChannelBase(DeclarativeOptionMetaclass):
                 
         return new_class
         
-class BaseChannel(Loggable, EnableableSectionOptionHolder):
+class BaseChannel(Loggable, EnableableOptionHolder):
     """Base class for channel.
     
     At the moment, the only reason to have a separate base class for `Channel` is testing purpose
@@ -42,25 +43,24 @@ class BaseChannel(Loggable, EnableableSectionOptionHolder):
 
     __metaclass__ = ChannelBase
     
-    config_section_name = 'channel'
+    section_name = 'channel'
 
     @classmethod
     def get_class_descriptors(cls):
         return cls._descriptors.values()
 
     @classmethod
-    def config_section_factory(cls):
-        attrs = {}
-        for k, descriptor in cls._descriptors.items():
-            for option_key, _option in descriptor.validator._options.items():
-                option = _option.clone()
+    def get_config_options(cls):
+        opts = super(BaseChannel, cls).get_config_options()
+        for descriptor_key, descriptor in cls._descriptors.items():
+            for option_key, option in descriptor.validator._options.items():
                 if option_key == 'ref':
-                    fullkey = k
+                    fullkey = descriptor_key
                 else:
-                    fullkey = '%s_%s' % (k, option_key)
-                assert fullkey not in attrs
-                attrs[fullkey] = option
-        return super(BaseChannel, cls).config_section_factory(**attrs)
+                    fullkey = '%s_%s' % (descriptor_key, option_key)
+                assert fullkey not in opts
+                opts[fullkey] = option
+        return opts
 
     def __init__(self, name=None, **kwargs):
 
@@ -119,6 +119,9 @@ class BaseChannel(Loggable, EnableableSectionOptionHolder):
     
     def get_validator(self, key):
         return self._variables[key].validator
+    
+    def get_descriptor(self, key):
+        return self._variables[key].descriptor
     
     def is_valid(self, key, value):
         try:
@@ -185,7 +188,11 @@ class Channel(BaseChannel):
     )
     
     def __str__(self):
-        return self._variables['frequency'].render()
+        f = self.get_frequency()
+        if f is None:
+            return '<no frequency set>'
+        else:
+            return self.get_descriptor('frequency').render(f)
     
     def get_frequency(self):
         return self._variables['frequency'].validator.ref

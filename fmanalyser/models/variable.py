@@ -81,7 +81,7 @@ class Variable(Loggable, object):
         self._command = value
 
     def render(self):
-        return self._descriptor.render_value(self._value)
+        return self._descriptor.render(self._value)
     
     def read(self, client):
         """Probes the device client to get actual value""" 

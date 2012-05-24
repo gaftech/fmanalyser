@@ -1,12 +1,19 @@
 """Device controllers aims to link :class:`..Device` instances with :mod:`fmanalyser.models` data models
 """
+from fmanalyser.device.controllers.base import DeviceController
+from fmanalyser.device.controllers.funcube import FuncubeController
+from fmanalyser.device.controllers.gr_rtl2832 import GrRtl2832Controller
+from fmanalyser.device.controllers.p175 import P175Controller
+from fmanalyser.device.controllers.rtl2832 import Rtl2832Controller
 from fmanalyser.exceptions import BadOptionValue
 from fmanalyser.models.bandscan import Bandscan
 from fmanalyser.models.channel import Channel
-from .p175 import P175Controller
 
 core_controllers = {
     'p175': P175Controller,
+    'funcube': FuncubeController,
+    'rtl': Rtl2832Controller,
+    'grrtl': GrRtl2832Controller,
 }
 
 def get_controller_class(model_name):
@@ -15,28 +22,31 @@ def get_controller_class(model_name):
 def create_controllers(config, enabled_only=True):
     
     channels = {}
-    for channel_section in config.get_section_or_subsections('channel'):
-        channel_conf = channel_section.values.copy()
-        ctl_name = channel_conf.pop('device', None)
-        channel = Channel(name=channel_section.subname, **channel_conf)
+    for channel_name, channel_conf in config.iter_section_or_subsections('channel'):
+#        ctl_name = channel_conf.pop('device', None)
+        ctl_name = channel_conf.get('device') # TODO: device option (that points to a controller)
+#                                             # should not be associated to a model
+#                                             # (same thing about scan below) 
+        channel = Channel.from_config_dict(channel_conf, name=channel_name) #TODO: call from_config might be cleaner
         channels.setdefault(ctl_name, []).append(channel)
     
     scans = {}
-    for scan_section in config.get_section_or_subsections('scan'):
-        scan_conf = scan_section.values.copy()
-        ctl_name = scan_conf.pop('device', None)
-        scan = Bandscan(name=scan_section.subname, **scan_conf)
+    for scan_name, scan_conf in config.iter_section_or_subsections('scan'):
+#        ctl_name = scan_conf.pop('device', None)
+        ctl_name = scan_conf.get('device')
+        scan = Bandscan.from_config(config, subname=scan_name)
         scans.setdefault(ctl_name,[]).append(scan)
     
     controllers = []
-    for dev_section in config.get_section_or_subsections('device'):
-        ctl_kwargs = dev_section.values.copy()
-        ctl_cls = get_controller_class(ctl_kwargs.pop('model'))
-        ctl_name = dev_section.subname
-        controller = ctl_cls(name=ctl_name,
-                             channels=channels.pop(ctl_name),
-                             scans=scans.pop(ctl_name),
-                             **ctl_kwargs)
+    for ctl_name, dev_conf in config.iter_section_or_subsections('device'):
+        dev_conf.setdefault('enabled', True)
+        controller = DeviceController.from_config_dict(  #TODO: call from_config might be cleaner
+            dev_conf,
+            name = ctl_name,
+            channels = channels.pop(ctl_name, ()),
+            scans = scans.pop(ctl_name, ()),
+        )
+
         if not enabled_only or controller.enabled:
             controllers.append(controller)
     

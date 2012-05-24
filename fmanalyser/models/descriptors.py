@@ -82,7 +82,7 @@ class ValueDescriptor(object):
     def read(self, client):
         return client.read(self.key)
 
-    def render_value(self, value):
+    def render(self, value):
         if self.unit:
             return '%s %s' % (value, self.unit)
         else:
@@ -99,10 +99,10 @@ class CarrierFrequencyDescriptor(ValueDescriptor):
         self.factor = factor
         super(CarrierFrequencyDescriptor, self).__init__(**kwargs)
     
-    def render_value(self, value):
+    def render(self, value):
         if value:
             value = float(value) / self.factor
-        return super(CarrierFrequencyDescriptor, self).render_value(value)
+        return super(CarrierFrequencyDescriptor, self).render(value)
     
     
     

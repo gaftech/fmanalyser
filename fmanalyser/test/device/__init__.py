@@ -1,6 +1,6 @@
 from .. import TestCase
 from nose.plugins.skip import SkipTest
-from fmanalyser.conf.fmconfig import fmconfig
+from fmanalyser.conf import fmconfig
 from fmanalyser.device.controllers import core_controllers
 from fmanalyser.device.controllers import create_controllers
 
@@ -11,7 +11,7 @@ class LiveTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
         super(LiveTestCase, cls).setUpClass()
-        if not cls.conf['live_tests']:
+        if not cls.conf.live_tests:
             raise SkipTest('%s : live tests disabled' % cls.__name__)
         
         cls.controllers = [c for c in create_controllers(fmconfig)

@@ -1,44 +1,37 @@
 # -*- coding: utf-8 -*-
-from fmanalyser.conf import EnableableSectionOptionHolder, options
-from fmanalyser.utils.log import Loggable
+from fmanalyser.conf import options, EnableableOptionHolder
 from fmanalyser.device import Worker
-from fmanalyser.conf.section import BaseConfigSection
-from fmanalyser.utils.datastructures import OrderedDict
+from fmanalyser.utils.log import Loggable
+from fmanalyser.models.bandscan import FFTBandscan
 
-class DeviceControllerConfigSection(BaseConfigSection):
+class DeviceController(Loggable, EnableableOptionHolder):
     
-    def get_options(self):
-        options = self._options.copy()
-#        classname = self._source[self.name]['cls']
-#        Plugin = get_class(classname)
-#        options.update(Plugin._options)
-        return options
-
-class DeviceController(Loggable, EnableableSectionOptionHolder):
-    
-    config_section_name = 'device'
+    section_name = 'device'
     device_class = None
     model = options.Option(default='p175')
+    scan_lock_time = options.FloatOption(default=1)
     
     @classmethod
-    def config_section_factory(cls, **attrs):
-        if cls.device_class is not None:
-            dev_opts = cls.device_class._options
-            attrs.update(dev_opts)
-        return super(DeviceController, cls).config_section_factory(
-            config_class=DeviceControllerConfigSection,
-            **attrs
-        )
-    
-#    @classmethod
-#    def get_options(cls):
-#        options = super(DeviceController, cls).get_options()
-#        if cls.device_class is not None:
-#            options.extend(cls.device_class.get_options())
-#        return options
+    def from_config_dict(cls, confdict, name=None, defaults=None, extras=None):
+        if cls is DeviceController:
+            from fmanalyser.device.controllers import get_controller_class
+            opts = confdict.copy()
+            model = cls._options['model'].pop_val_from_dict(opts) 
+            subcls = get_controller_class(model)
+            return subcls.from_config_dict(opts, name, defaults, extras)
+        return super(DeviceController, cls).from_config_dict(confdict, name, defaults, extras) 
     
     def __init__(self, name=None, channels=(), scans=(), **kwargs):
         
+        if self.device_class is None:
+            raise ValueError("%s subclasses must define a `device_class` attribute")
+        
+        # Device and worker init
+        #TODO: device should be owned by worker only.
+        # Maybe we can pass the device constructor to the worker.
+        # Or maybe, we should keep the device and provides to the worker method to build a new one if necessary
+        # The underlying idea is that we may want to make devices that needs to restart from a fresh instance 
+        # in case of problem.
         dev_kwargs = dict(
             (k, kwargs.pop(k)) for k in self.device_class._options
             if k in kwargs
@@ -65,7 +58,7 @@ class DeviceController(Loggable, EnableableSectionOptionHolder):
         return self._channels
     
     @property
-    def bandscans(self):
+    def scans(self):
         return self._scans
     
     def start_worker(self):
@@ -92,19 +85,79 @@ class DeviceController(Loggable, EnableableSectionOptionHolder):
     def should_enqueue(self):
         return self._last_enqueued is None or self._last_enqueued.done
     
+    def enqueue_update(self):
+        self.enqueue_channel_update()
+        self.enqueue_bandscan_update()
+    
     def enqueue_channel_update(self):
-        for channel in self.channels():
-            self._last_enqueued = self._enqueue_channel_update(channel)
+        for channel in self.channels:
+            self._last_enqueued = self.enqueue_channel_update(channel)
     
     def _enqueue_channel_update(self, channel):
         raise NotImplementedError()
     
     def enqueue_bandscan_update(self):
-        raise NotImplementedError
+        for scan in self.scans:
+            self.worker.acquire()
+            try:
+                self._last_enqueued = self._enqueue_bandscan_update(scan)
+            finally:
+                self.worker.release()
+    
+    def _enqueue_bandscan_update(self, scan):
+        self.worker.enqueue_worker_task(self._update_scan_loop, scan)
+        
+    def _update_scan_loop(self, task, worker, scan):
+        self._scan_init(worker, scan)
+        count = 0
+        while True:
+            # Check stop conditions
+            if worker.stopped:
+                break
+            if scan.partial and count > scan.partial:
+                break
+            next_freq = scan.get_next_frequency()
+            if not next_freq:
+                break
+            if isinstance(scan, FFTBandscan):
+                self._update_fft_scan(worker, next_freq, scan)
+            else:
+                self._update_scan(worker, next_freq, scan)
+            count += 1
+    
+    def _scan_init(self, worker, scan):
+        """Hook to configure device before scan levels acquiring"""
+    
+    def _update_scan(self, worker, next_freq, scan):
+        worker.device.tune(next_freq)
+        worker.sleep(self.scan_lock_time)
+        l = self._probe_scan_level(worker)
+        scan.update([(next_freq, l)])
+    
+    def _probe_scan_level(self, worker):
+        raise NotImplementedError()
+    
+    def _update_fft_scan(self, worker, next_freq, scan):
+        worker.device.tune(next_freq)
+        worker.sleep(self.scan_lock_time)
+        rel_freqs, levels = self._probe_fft(worker,
+            span = scan.span
+        )
+        scan.update(next_freq, rel_freqs, levels)        
+    
+    def _probe_fft(self, worker, span):
+        raise NotImplementedError()
     
     def close(self):
         self.stop_worker()
         self.device.close()
     
-
+class GrDeviceController(DeviceController):
+    
+    def _probe_scan_level(self, worker):
+        return worker.device.get_signal_level()
+    
+    
+    
+    
     

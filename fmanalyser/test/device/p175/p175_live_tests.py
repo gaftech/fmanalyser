@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-
-from fmanalyser.conf.fmconfig import fmconfig
 from fmanalyser.device.controllers.p175 import P175Controller
 from fmanalyser.exceptions import ValidationException
 from fmanalyser.test.device import LiveTestCase
@@ -26,10 +24,17 @@ class P175Test(LiveTestCase):
             self.assertTrue(ctl.device.socket.inWaiting()==0)
 
     def test_autodetect(self):
-        if not any(ctl.device.port is None for ctl in self.controllers):
+        dev = None
+        for ctl in self.controllers:
+            if ctl.device.port is not None:
+                continue
+            dev = ctl.device
+            break
+        
+        if dev is None:
             raise SkipTest('No device configured for autodetection')
-        dev = ctl.device._autodetect()
-        self.assertRegexpMatches(dev, r'^/dev/ttyUSB\d$')
+        port = dev._autodetect()
+        self.assertRegexpMatches(port, r'^/dev/ttyUSB\d$')
 
     def test_get_frequency(self):
         for ctl in self.controllers:
@@ -62,37 +67,27 @@ class ValidatorTest(LiveTestCase):
     
     def test_channels(self):
         for ctl in self.controllers:
-            self.device = ctl.device
-            for chan in ctl.channels:
-                self.channel_conf = fmconfig.get_section('channel', chan.name)
-                self._set_frequency()
-                self._check_frequency()
-                self._check_subcarriers(timeout=10)
+            for channel in ctl.channels:
+                f = channel.get_frequency()
+                if f is not None:
+                    self.assertIsFrequency(f)
+                    ctl.device.tune(f)
+                    self.assertEqual(ctl.device.get_frequency(), f)
+                    self._check_subcarriers(timeout=10, device=ctl.device, channel=channel)
         
-    def _set_frequency(self):
-        f = self.channel_conf['frequency']
-        self.assertIsFrequency(f)
-        self.client.tune(f)
-        
-    def _check_frequency(self):
-        self.assertEqual(
-            self.client.get_frequency(),
-            self.channel_conf['frequency']
-        )
-    
-    def _check_subcarriers(self, timeout):
+    def _check_subcarriers(self, timeout, device, channel):
         # TODO: Here we're waiting for the device to have made enough measurement.
         #       but  there should have a more appropriate place to do this
-        self.device.set_measuring_mode()
+        device.set_measuring_mode()
         time_limit = time.time() + timeout
         while True:
-            rds = self.device.get_rds()
+            rds = device.get_rds()
             self.assertIsInstance(rds, float)
-            pilot = self.device.get_pilot()
+            pilot = device.get_pilot()
             self.assertIsInstance(pilot, float)            
             try:
-                self.channel.validate('rds', rds)
-                self.channel.validate('pilot', pilot)
+                channel.validate('rds', rds)
+                channel.validate('pilot', pilot)
             except ValidationException:
                 if time.time() >= time_limit:
                     raise

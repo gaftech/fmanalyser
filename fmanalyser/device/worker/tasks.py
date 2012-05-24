@@ -49,21 +49,27 @@ class CallbackTask(BaseTask):
     
     def __str__(self):
         name = '???'
-        if isinstance(self.callback, basestring):
-            name = self.callback
-        elif hasattr(self.callback, 'im_self'):
+        if hasattr(self.callback, 'im_self'):
             name = '%s.%s' % (self.callback.im_self,
                               self.callback.__name__)
-        
         return 'callback : %s' % name
     
     def run(self, worker):
-        client = worker._client
+        return self.callback(self, worker, *self.args, **self.kwargs)
+
+class DeviceTask(CallbackTask):
+
+    def __str__(self):
         if isinstance(self.callback, basestring):
-            method = getattr(client, self.callback)
+            return 'device.%s' % self.callback        
+        return super(DeviceTask, self).__str__()
+
+    def run(self, worker):
+        if isinstance(self.callback, basestring):
+            method = getattr(worker._device, self.callback)
             return method(*self.args, **self.kwargs)
         else:
-            return self.callback(client, *self.args, **self.kwargs)
+            return self.callback(worker._device, *self.args, **self.kwargs)
 
 class Sleep(BaseTask):
     
@@ -75,7 +81,6 @@ class Sleep(BaseTask):
         return '%s s sleep' % self.timeout
     
     def run(self, worker):
-#        self._stop.wait(timeout=self.timeout)
         try:
             self.wait(timeout=self.timeout, blocking=False)
         except Timeout:

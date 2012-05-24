@@ -35,7 +35,7 @@ class DeclarativeOptionMetaclass(type):
         if hasattr(cls._option_cls, '_creation_counter'):
             items.sort(cmp=lambda x,y: cmp(x[1]._creation_order, y[1]._creation_order))
         if cls._copy_options:
-            items = [(k, copy(o)) for k,o in items]
+            items = [(k, o.clone()) for k,o in items] #TODO: should use standard copy function
         options = OrderedDict(items)
         
         new_class = super(DeclarativeOptionMetaclass, cls).__new__(

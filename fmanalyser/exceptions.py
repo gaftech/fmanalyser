@@ -39,6 +39,9 @@ class ConfigError(FmAnalyserException):
 class MissingSection(ConfigError):
     """Raised when a required section is not found in configuration""" 
 
+class NoSuchSection(ConfigError):
+    """Raised when trying to get a config subsection not defined in config file"""
+
 class UnexpectedSection(ConfigError):
     """Raised when an unexpected section is found in a config"""
 
@@ -74,3 +77,11 @@ class TaskTimeout(Timeout):
     
 class AlreadyRegistered(FmAnalyserException):
     """Raised when trying to register an already registered element"""
+    
+class OutOfBound(FmAnalyserException):
+    """Specific value error"""
+
+class OutOfBoundFrequency(OutOfBound):
+    pass
+    
+    

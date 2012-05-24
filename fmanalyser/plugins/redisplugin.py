@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 from ..plugins.base import CorePlugin
-import redis
 from ..models.signals import value_changed
 from ..conf import options
 
 class RedisPlugin(CorePlugin):
     
-    config_section_name = 'redis'
+    section_name = 'redis'
     
     host = options.Option(default='localhost')
     port = options.IntOption(default=6379)
@@ -14,6 +13,10 @@ class RedisPlugin(CorePlugin):
     expire = options.IntOption(default=30)
     
     def start(self):
+        try:
+            import redis
+        except ImportError:
+            raise ImportError('you should install redis or disable redis plugin')
         self.client = redis.Redis(self.host, self.port, self.db)
         self._connect()
     

@@ -26,7 +26,6 @@ class ChannelConfigTest(TestCase):
     
     def setUp(self):
         super(ChannelConfigTest, self).setUp()
-        self.ChannelConfig = TestChannelClass.config_section_factory()
 
     def test_option_clone(self):
         self.assertIsNot(
@@ -36,8 +35,9 @@ class ChannelConfigTest(TestCase):
         
    
     def test_default_values(self):
-        self.assertEqual(self.ChannelConfig._options['value1_opt3'].default, 1)
-        self.assertEqual(self.ChannelConfig._options['value2_opt3'].default, 2)
+        options = TestChannelClass.get_config_options()
+        self.assertEqual(options['value1_opt3'].default, 1)
+        self.assertEqual(options['value2_opt3'].default, 2)
 #    
     
 

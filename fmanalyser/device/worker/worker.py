@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from . import tasks
+from fmanalyser.conf import settings
 from fmanalyser.exceptions import DeviceError, QueueFull
 from fmanalyser.utils.log import Loggable
 from fmanalyser.utils.threads import Stoppable
@@ -17,8 +18,7 @@ class Worker(Loggable, Stoppable):
         super(Worker, self).__init__()
         
         # Options
-        from fmanalyser.conf.fmconfig import fmconfig
-        self.empty_queue_timeout = fmconfig['global']['empty_queue_timeout']
+        self.empty_queue_timeout = settings.empty_queue_timeout
         
         self._device = device
         self.exc_info = None
@@ -40,7 +40,7 @@ class Worker(Loggable, Stoppable):
                     self._stop.wait(self.empty_queue_timeout)
                 else:
                     try:
-                        self._current_task.perform(worker=self)
+                        self._current_task.perform(self)
                         self._current_task = None
                     except DeviceError, e:
                         self.logger.info('device error while performing task %s' % self._current_task)
@@ -97,25 +97,24 @@ class Worker(Loggable, Stoppable):
         self.logger.debug('worker stopped')
     
     def enqueue(self, *args, **kwargs):
-        """Build and enqueues a :class:`tasks.CallbackTask` instance.
+        """Build and enqueues a :class:`tasks.DeviceTask` instance.
         
         Args and kwargs are passed to the class constructor.
         """
-        
-        task_class = tasks.CallbackTask
-        
-        if self.max_queue_size and len(self._queue) > self.max_queue_size:
-            raise QueueFull('worker queue size : %s' % len(self._queue))
-        task = task_class(*args, **kwargs)
+        return self.enqueue_task(tasks.DeviceTask(*args, **kwargs))
+    
+    def enqueue_worker_task(self, *args, **kwargs):
+        return self.enqueue_task(tasks.CallbackTask(*args, **kwargs))
+    
+    def enqueue_task(self, task):
         if self._stop.is_set():
             self.logger.warning('can not enqueue task while stopping : %s' % task)
             return task
-        return self.enqueue_task(task)
-    
-    def enqueue_task(self, task):
+        if self.max_queue_size and len(self._queue) > self.max_queue_size:
+            raise QueueFull('worker queue size : %s' % len(self._queue))    
         with self._lock:
             self._queue.append(task)
             self.logger.debug('task enqueued (%s) : %s' % (len(self._queue), task))
-        return task        
+        return task    
     
     

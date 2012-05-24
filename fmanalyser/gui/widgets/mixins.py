@@ -34,7 +34,7 @@ class ChannelVariableListenerMixin(ControlledMixin):
                 variable = self.get_variable()
             value = variable.value
         if not self.use_raw_value:
-            value = variable.descriptor.render_value(value)
+            value = variable.descriptor.render(value)
         self.update_value(value)
     
     def update_value(self, current_value):

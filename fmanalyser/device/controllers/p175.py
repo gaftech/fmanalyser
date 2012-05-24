@@ -19,18 +19,12 @@ class P175Controller(DeviceController):
         'pi', 'ps', # TODO: yes, do it !
     )
     
-    def update_channel_variables(self, device, channel, measuring=True, rds=True):
-        for variable in channel.filter_variables(enabled=True):
-            if not rds and variable.attname in self.rds_data_keys:
-                continue 
-            method = getattr(self.device, 'get_%s' % variable.attname)
-            value = method()
-            variable.update(value)
-
-    def update_channel_rds_data(self, device, channel):
-        data = device.get_rds_data()
-        for k, v in data:
-            channel.get_variable(k).set_value(v)
+    def _scan_tune(self, frequency, worker):
+        worker.device.set_mode(MEASURING_MODE)
+        return super(P175Controller, self)._scan_tune(frequency, worker)
+    
+    def _probe_scan_level(self, worker):
+        return worker.device.get_rf(fast=True)
     
     def _enqueue_channel_update(self, channel):
         
@@ -77,5 +71,15 @@ class P175Controller(DeviceController):
         self.worker.enqueue('set_mode', mode)
         return self.worker.enqueue_task(tasks.Sleep(timeout))
     
-        
-    
+    def update_channel_variables(self, device, channel, measuring=True, rds=True):
+        for variable in channel.filter_variables(enabled=True):
+            if not rds and variable.attname in self.rds_data_keys:
+                continue 
+            method = getattr(self.device, 'get_%s' % variable.attname)
+            value = method()
+            variable.update(value)
+
+    def update_channel_rds_data(self, device, channel):
+        data = device.get_rds_data()
+        for k, v in data:
+            channel.get_variable(k).set_value(v)
