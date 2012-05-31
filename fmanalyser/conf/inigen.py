@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from fmanalyser.device.controllers import core_controllers
+from fmanalyser.device.controllers import _core_controllers,\
+    get_controller_class
 from fmanalyser.device.controllers.base import DeviceController
 from fmanalyser.plugins import Plugin, core_plugins
 from fmanalyser.conf import GlobalConfigSection
@@ -70,7 +71,8 @@ class Command(BaseCommand):
            exclude_options = ('model',),
         ))
         # Examples per available controllers
-        for name, Controller in core_controllers.items():
+        for name in _core_controllers.keys():
+            Controller = get_controller_class()
             self.append_section(fp, ExampleSection(
                 Controller,
                 section_name = 'device:%s_example' % (name,),

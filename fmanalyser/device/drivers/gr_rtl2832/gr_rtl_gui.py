@@ -1,3 +1,4 @@
+#@PydevCodeAnalysisIgnore
 #!/usr/bin/env python
 ##################################################
 # Gnuradio Python Flow Graph

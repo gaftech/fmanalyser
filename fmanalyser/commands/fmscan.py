@@ -3,17 +3,16 @@
 from fmanalyser.conf import fmconfig
 from fmanalyser.device.controllers.base import DeviceController
 from fmanalyser.exceptions import CommandError
-from fmanalyser.models import bandscan
-from fmanalyser.models.signals import scan_updated, fft_scan_updated,\
-    scan_completed
+from fmanalyser.models.bandscan import BaseBandscan
+from fmanalyser.models.signals import scan_updated, fft_scan_updated
 from fmanalyser.utils.command import BaseCommand
+from itertools import izip
 from optparse import make_option
 import os
 import subprocess
 import sys
 import tempfile
-from fmanalyser.models.bandscan import BaseBandscan
-from itertools import izip
+import shutil
 
 class Command(BaseCommand):
 
@@ -101,49 +100,54 @@ class Command(BaseCommand):
             self._gp = subprocess.Popen(['gnuplot'], stdin=subprocess.PIPE)
         except OSError:
             raise CommandError("can't open gnuplot, please check if it's installed")        
-#        self._gpw('set xrange [%f:%f]' % (self.scan.start,
-#                                          self.scan.stop))
+        self._gpw('set xrange [%f:%f]' % (self.scan.start,
+                                          self.scan.stop))
         self._gpw('lower')
         
-        self._gp_files = []
+        self._gp_files = set()
+        self._gp_count = 0
         self._gp_tmp_dir = tempfile.mkdtemp(suffix='fmscan')
         
-#        scan_updated.connect(self._gp_update, self.scan)
-        scan_completed.connect(self._gp_completed, self.scan)
+        if self.options.load_ref and os.path.exists(self.scan.ref_file):
+            #TODO: Bandscan must implement a way to provide its reference and to load a file
+#            fpath = os.path.join(self._gp_tmp_dir, 'ref.scan')
+#            shutil.copy2(self.scan.ref_file, fpath)
+            self._gp_add_file(self.scan.ref_file)
+        
+        scan_updated.connect(self._gp_update,)
+#        scan_completed.connect(self._gp_completed, self.scan)
+        fft_scan_updated.connect(self._gp_update,)
         if self.options.debug:
-            fft_scan_updated.connect(self._gp_debug_fft, self.scan)        
+            fft_scan_updated.connect(self._gp_debug_fft)
     
-    def _gp_add_file(self, basename, cmd_extras='with lines'):
-        filename = os.path.join(self._gp_tmp_dir, basename)
-        self._gp_files.append((filename, cmd_extras))
-        return filename
-    
-    def _gp_plot(self):
-        plot = 'plot'
-        for filename, extras in self._gp_files:
-            command = "%s '%s' %s" % (plot, filename, extras)
-            self._gpw(command)
-            plot = 'replot'
+    def _gp_add_file(self, fpath, cmd_extras='with lines'):
+        if fpath not in self._gp_files:
+            plot = 'replot' if self._gp_count else 'plot'
+            self._gp_count += 1
+            self._gp_files.add(fpath)
+            self._gpw("%s '%s' %s" % (plot, fpath, cmd_extras))
+        else:
+            self._gpw('replot')
     
     def _gpw(self, command):
         command = '%s\n' % command
         self._gp.stdin.write(command)
     
-    def _gp_completed(self, signal, sender, event):
+    def _gp_update(self, signal, sender, event):
         # Global scan
-        fpath = self._gp_add_file('global.scan')
-        with open(fpath, 'w') as fp:
-            for f, l in self.scan:
-                fp.write('%s %s\n' % (f,l))
-        self._gp_plot()
+        if self.options.debug or self.scan.is_complete():
+            fpath = os.path.join(self._gp_tmp_dir, 'global.scan')
+            with open(fpath, 'w') as fp:
+                self.scan.dump(fp)
+            self._gp_add_file(fpath)
         
     def _gp_debug_fft(self,  signal, sender, event):
-        fname = '%s_MHz' % (event.center_freq/1000)
-        fpath = self._gp_add_file(fname)
+        fname = '%s_MHz' % (event.center_freq/1e3)
+        fpath = os.path.join(self._gp_tmp_dir, fname)
         with open(fpath, 'w') as fp:
             for f, l in izip(event.rel_freqs, event.levels):
                 fp.write('%s %s\n' % (f+event.center_freq, l))
-        self._gp_plot()
+        self._gp_add_file(fpath)
     
         
     def init_matplotlib(self):

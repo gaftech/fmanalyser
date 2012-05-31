@@ -1,9 +1,7 @@
+from fmanalyser.conf import options
 from fmanalyser.device.controllers.base import DeviceController
 from fmanalyser.device.drivers.rtl2832 import Rtl2832
-from fmanalyser.conf import options
-import itertools
 from matplotlib import mlab
-import math
 import numpy
 
 class Rtl2832Controller(DeviceController):

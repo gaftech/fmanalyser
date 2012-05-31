@@ -21,7 +21,10 @@ class PortLocked(DeviceNotFound):
 class MultipleDevicesFound(DeviceError):
     """Raised when many devices matching a request are connected"""
 
-class BadResponseFormat(DeviceError):
+class DeviceResponseError(DeviceError):
+    """Indicates that a response has been received but doesn't match expected criterias"""
+
+class BadResponseFormat(DeviceResponseError):
     """Raised where an incorrectly formatted response is received"""
 
 class SerialError(DeviceError):

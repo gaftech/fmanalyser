@@ -13,6 +13,8 @@ import threading
 MODEL_BASIC = 'basic'
 MODEL_FFT = 'fft'
 MODEL_MULTISCAN = 'multiscan'
+MODEL_MULTISCAN_FFT = 'multifft'
+MODEL_CHOICES = (MODEL_BASIC, MODEL_FFT, MODEL_MULTISCAN, MODEL_MULTISCAN_FFT,)
 
 class BaseBandscan(Loggable, EnableableOptionHolder):
     
@@ -20,7 +22,7 @@ class BaseBandscan(Loggable, EnableableOptionHolder):
     
     device = options.Option(
         ini_help="Name of the device to use (as in [device:<name>] section)")
-    model = options.Option(choices=(MODEL_BASIC, MODEL_FFT, MODEL_MULTISCAN), default=MODEL_BASIC)
+    model = options.Option(choices=MODEL_CHOICES, default=MODEL_BASIC)
     step = options.IntOption(default=100)
     partial = options.IntOption(default=10)
     exclude = options.JsonOption(default=(),
@@ -43,7 +45,7 @@ class BaseBandscan(Loggable, EnableableOptionHolder):
 
     @classmethod
     def get_subclass(cls, confdict):
-        model = confdict.get('model')
+        model = confdict.get('model', MODEL_BASIC)
         try:
             return {
                 MODEL_BASIC: Bandscan,
@@ -201,16 +203,19 @@ class FFTBandscan(BaseMultipassBandscan):
             self.stop_cf = self.start_cf
         
         # Value checks
-#        if self.stop_cf < self.start_cf:
-#            raise ValueError(
-#                "stop frequency (%s) must be greater than or equal to stop frequency (%s)" % (
-#                self.stop_cf, self.start_cf))
-        #TODO: jump/span/reject value checks
+        #TODO: jump/span/reject value checks (ie full band coverage check)
     
         # Computed fixed attributes
-        self.start = self.start_cf - self.span/2 + self.side_skip
-        self.stop = self.stop_cf + self.span/2 - self.side_skip
-    
+        low = min(self.start_cf, self.stop_cf)
+        high = max(self.start_cf, self.stop_cf)
+        self.start = low - self.span/2 + self.side_skip
+        self.stop = high + self.span/2 - self.side_skip
+        
+        # option fixing
+        self.jump = abs(self.jump)
+        if self.stop_cf < self.start_cf:
+            self.jump = - self.jump
+        
         # Data init
         self._freqs = range(self.start_cf, self.stop_cf+self.jump, self.jump)
         
@@ -278,8 +283,12 @@ This section can define options that will be set as default for all sub-scans.
     @classmethod
     def from_config(cls, config, subname=None, extras=None, **kwargs):
         confdict = config.get_section(cls.section_name, subname)
-        subscan_defaults = dict((k,confdict.pop(k)) for k in confdict.keys()
-                                if k not in cls._options)
+        subscan_defaults = {}
+        for k in confdict.keys():
+            if k not in cls._options:
+                subscan_defaults[k] = confdict.pop(k)
+            if k in BaseBandscan._options:
+                subscan_defaults[k] = confdict[k]
         subscan_names = cls._options['scans'].clean(confdict['scans'])
         subscans = []
         for subscan_name in subscan_names:
@@ -290,7 +299,23 @@ This section can define options that will be set as default for all sub-scans.
         extras = extras or {}
         extras.setdefault('scans', subscans)
         return cls.from_config_dict(confdict, subname, extras=extras, **kwargs)
+    
+    def __init__(self, **kwargs):
+        super(MultiScan, self).__init__(**kwargs)
+        scan_completed.connect(self._scan_completed)
         
+    @property
+    def start(self):
+        return (min(s.start for s in self.scans))
+
+    @property
+    def stop(self):
+        return (max(s.stop for s in self.scans))
+    
+    def _scan_completed(self, signal, sender):
+        if sender is not self and self.is_complete():
+            scan_completed.send(self)
+    
     def is_complete(self):
         return all(s.is_complete() for s in self.scans)
     
@@ -304,4 +329,4 @@ This section can define options that will be set as default for all sub-scans.
     
     def _overlap_interlace(self, lst):
         return max(lst)   
-    
+

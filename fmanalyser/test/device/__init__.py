@@ -1,7 +1,6 @@
 from .. import TestCase
 from nose.plugins.skip import SkipTest
 from fmanalyser.conf import fmconfig
-from fmanalyser.device.controllers import core_controllers
 from fmanalyser.device.controllers import create_controllers
 
 class LiveTestCase(TestCase):

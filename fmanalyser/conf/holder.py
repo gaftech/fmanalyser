@@ -14,7 +14,7 @@ class OptionHolder(object):
     @classmethod
     def from_config(cls, config, subname=None, defaults=None, extras=None):
         conf_dict = cls.get_config_dict(config, subname)
-        return cls.from_config_dict(conf_dict, subname, defaults, extras)
+        return cls.from_config_dict(conf_dict, subname, defaults=defaults, extras=extras)
 
     @classmethod
     def from_config_dict(cls, confdict, subname=None, defaults=None, extras=None):

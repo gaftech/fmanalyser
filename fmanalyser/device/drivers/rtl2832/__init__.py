@@ -1,7 +1,7 @@
+from fmanalyser.conf import options
 from fmanalyser.device.drivers.base import Device
 from pylab import psd
 import rtlsdr
-from fmanalyser.conf import options
 
 class Rtl2832(Device):
     

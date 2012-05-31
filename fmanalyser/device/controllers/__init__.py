@@ -1,23 +1,21 @@
 """Device controllers aims to link :class:`..Device` instances with :mod:`fmanalyser.models` data models
 """
 from fmanalyser.device.controllers.base import DeviceController
-from fmanalyser.device.controllers.funcube import FuncubeController
-from fmanalyser.device.controllers.gr_rtl2832 import GrRtl2832Controller
-from fmanalyser.device.controllers.p175 import P175Controller
-from fmanalyser.device.controllers.rtl2832 import Rtl2832Controller
 from fmanalyser.exceptions import BadOptionValue
 from fmanalyser.models.bandscan import Bandscan
 from fmanalyser.models.channel import Channel
+from fmanalyser.utils.import_tools import get_class
 
-core_controllers = {
-    'p175': P175Controller,
-    'funcube': FuncubeController,
-    'rtl': Rtl2832Controller,
-    'grrtl': GrRtl2832Controller,
+_core_controllers = {
+    'p175':     'p175.P175Controller',
+    'funcube':  'funcube.FuncubeController',
+    'rtl':      'rtl2832.Rtl2832Controller',
+    'grrtl':    'gr_rtl2832.GrRtl2832Controller',
 }
 
 def get_controller_class(model_name):
-    return core_controllers[model_name]
+    class_path = 'fmanalyser.device.controllers.%s' % (_core_controllers[model_name],)
+    return get_class(class_path)
 
 def create_controllers(config, enabled_only=True):
     

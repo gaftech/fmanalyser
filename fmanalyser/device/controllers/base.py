@@ -2,7 +2,7 @@
 from fmanalyser.conf import options, EnableableOptionHolder
 from fmanalyser.device import Worker
 from fmanalyser.utils.log import Loggable
-from fmanalyser.models.bandscan import FFTBandscan
+from fmanalyser.models.bandscan import FFTBandscan, MultiScan
 
 class DeviceController(Loggable, EnableableOptionHolder):
     
@@ -20,6 +20,14 @@ class DeviceController(Loggable, EnableableOptionHolder):
             subcls = get_controller_class(model)
             return subcls.from_config_dict(opts, name, defaults, extras)
         return super(DeviceController, cls).from_config_dict(confdict, name, defaults, extras) 
+    
+    @classmethod
+    def get_config_options(cls):
+        opts = super(DeviceController, cls).get_config_options()
+        if not cls is DeviceController:
+            opts.update(cls.device_class.get_config_options())
+        return opts
+        
     
     def __init__(self, name=None, channels=(), scans=(), **kwargs):
         
@@ -105,7 +113,12 @@ class DeviceController(Loggable, EnableableOptionHolder):
                 self.worker.release()
     
     def _enqueue_bandscan_update(self, scan):
-        self.worker.enqueue_worker_task(self._update_scan_loop, scan)
+        if isinstance(scan, MultiScan):
+            scans = scan.scans
+        else:
+            scans = [scan]
+        for scan in scans:
+            self.worker.enqueue_worker_task(self._update_scan_loop, scan)
         
     def _update_scan_loop(self, task, worker, scan):
         self._scan_init(worker, scan)

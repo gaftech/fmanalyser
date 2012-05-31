@@ -10,7 +10,6 @@ from fmanalyser.utils.parse import parse, parse_carrier_frequency, parse_float, 
 from serial.serialutil import SerialException
 import fcntl
 import serial
-import threading
 import time
 
 MEASURING_MODE = 'mes'
@@ -20,14 +19,14 @@ MODE_CHOICES = (MEASURING_MODE, RDS_MODE, STEREO_MODE)
 
 class P175(Device):
     
-    port = options.Option(ini_help="Serial port. USB-autodetection if not set.")
-    fine_tune = options.BooleanOption(default=None,
-        ini_help='Use 50 kHz frequency step')
+    port        = options.Option(ini_help="Serial port. USB-autodetection if not set.")
+    fine_tune   = options.BooleanOption(default=None,
+                                        ini_help='Use 50 kHz frequency step')
     high_scan_sens = options.BooleanOption(default=None,)
-    use_cache = options.BooleanOption(default=False,
-        ini_help= \
+    use_cache   = options.BooleanOption(default=False, ini_help= \
 """Trust (or not) device statuses (like measuring mode) that are cached by the client.
 Setting this to true means that you're sure that the device is not accessed manually or by another software.""")
+    
     
     serial_options = {
         'baudrate': 19200,
@@ -179,7 +178,7 @@ Setting this to true means that you're sure that the device is not accessed manu
         self._frequency = self._probe_line('?F', formatter=parse_carrier_frequency)
         return self._frequency 
     
-    def set_frequency(self, f, force=False):
+    def tune(self, f, force=False):
         """Sets the device frequency to f (kHz)
         
         :param boolean force:
@@ -190,8 +189,8 @@ Setting this to true means that you're sure that the device is not accessed manu
         if force or self.get_frequency() != f:
             self._write('%s*F' % str(f).zfill(6))
     
-    #: alias for :meth:`set_frequency`
-    tune = set_frequency
+#    #: alias for :meth:`set_frequency`
+#    tune = set_frequency
     
     def tune_hz(self, f):
         self.tune(int(f/1000))

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from copy import copy
 from fmanalyser.conf import options, OptionHolder
 from fmanalyser.conf.declarative import DeclarativeOptionMetaclass
 from fmanalyser.test import TestCase
