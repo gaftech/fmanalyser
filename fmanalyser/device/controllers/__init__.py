@@ -7,10 +7,11 @@ from fmanalyser.models.channel import Channel
 from fmanalyser.utils.import_tools import get_class
 
 _core_controllers = {
-    'p175':     'p175.P175Controller',
-    'funcube':  'funcube.FuncubeController',
-    'rtl':      'rtl2832.Rtl2832Controller',
-    'grrtl':    'gr_rtl2832.GrRtl2832Controller',
+    'p175':          'p175.P175Controller',
+    'funcube':      'funcube.FuncubeController',
+    'rtl':          'rtl2832.Rtl2832Controller',
+    'grrtl':        'gr_rtl2832.GrRtl2832Controller',
+    'si4735_ar':    'si4735_shield_arduino.Si4735ArduinoShieldController',
 }
 
 def get_controller_class(model_name):

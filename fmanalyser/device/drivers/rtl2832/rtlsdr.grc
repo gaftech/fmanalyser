@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='ASCII'?>
 <flow_graph>
-  <timestamp>Fri May 18 12:19:48 2012</timestamp>
+  <timestamp>Fri Jun  1 14:34:13 2012</timestamp>
   <block>
     <key>options</key>
     <param>
@@ -352,113 +352,22 @@
     </param>
   </block>
   <block>
-    <key>gr_complex_to_mag_squared</key>
+    <key>variable</key>
     <param>
       <key>id</key>
-      <value>gr_complex_to_mag_squared_0</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>vlen</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(398, 252)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-  </block>
-  <block>
-    <key>rtl2832_source</key>
-    <param>
-      <key>id</key>
-      <value>rtl2832_source_0</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>verbose</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>sample_rate</key>
       <value>samp_rate</value>
     </param>
     <param>
-      <key>frequency</key>
-      <value>freq</value>
-    </param>
-    <param>
-      <key>bandwidth</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>relative_gain</key>
+      <key>_enabled</key>
       <value>True</value>
     </param>
     <param>
-      <key>gain</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>gain_mode</key>
-      <value></value>
-    </param>
-    <param>
-      <key>auto_gain_mode</key>
-      <value>False</value>
-    </param>
-    <param>
-      <key>usb_vid</key>
-      <value>0x0</value>
-    </param>
-    <param>
-      <key>usb_pid</key>
-      <value>0x0</value>
-    </param>
-    <param>
-      <key>tuner_name</key>
-      <value></value>
-    </param>
-    <param>
-      <key>read_length</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>xfer_timeout</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>use_buffer</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>buf_mul</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>buf_level</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>fir_coeffs</key>
-      <value>[]</value>
-    </param>
-    <param>
-      <key>xtal_freq</key>
-      <value>0</value>
+      <key>value</key>
+      <value>192000</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(8, 211)</value>
+      <value>(192, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -505,22 +414,157 @@
     </param>
   </block>
   <block>
-    <key>variable</key>
+    <key>osmosdr_source_c</key>
     <param>
       <key>id</key>
-      <value>samp_rate</value>
+      <value>osmosdr_source_c_0</value>
     </param>
     <param>
       <key>_enabled</key>
       <value>True</value>
     </param>
     <param>
-      <key>value</key>
-      <value>192000</value>
+      <key>type</key>
+      <value>fc32</value>
+    </param>
+    <param>
+      <key>args</key>
+      <value></value>
+    </param>
+    <param>
+      <key>nchan</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>sample_rate</key>
+      <value>samp_rate</value>
+    </param>
+    <param>
+      <key>freq0</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>corr0</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain0</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain_mode0</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>ant0</key>
+      <value></value>
+    </param>
+    <param>
+      <key>freq1</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>corr1</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain1</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain_mode1</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>ant1</key>
+      <value></value>
+    </param>
+    <param>
+      <key>freq2</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>corr2</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain2</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain_mode2</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>ant2</key>
+      <value></value>
+    </param>
+    <param>
+      <key>freq3</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>corr3</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain3</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain_mode3</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>ant3</key>
+      <value></value>
+    </param>
+    <param>
+      <key>freq4</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>corr4</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain4</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>gain_mode4</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>ant4</key>
+      <value></value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(192, 11)</value>
+      <value>(54, 229)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>gr_complex_to_mag_squared</key>
+    <param>
+      <key>id</key>
+      <value>gr_complex_to_mag_squared_0</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>vlen</key>
+      <value>1</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(398, 252)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -576,14 +620,14 @@
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>rtl2832_source_0</source_block_id>
-    <sink_block_id>gr_complex_to_mag_squared_0</sink_block_id>
+    <source_block_id>osmosdr_source_c_0</source_block_id>
+    <sink_block_id>xlating_fir_filter</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>rtl2832_source_0</source_block_id>
-    <sink_block_id>xlating_fir_filter</sink_block_id>
+    <source_block_id>osmosdr_source_c_0</source_block_id>
+    <sink_block_id>gr_complex_to_mag_squared_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
