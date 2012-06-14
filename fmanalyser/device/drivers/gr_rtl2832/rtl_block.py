@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-
-import baz
 from fmanalyser.device.drivers.grblock import BaseGrBlock
-import osmosdr
+
 
 class RtlBlock(BaseGrBlock):
     
@@ -15,6 +13,10 @@ class RtlBlock(BaseGrBlock):
             return self._make_rtl_source()
     
     def _make_rtl_source(self):
+        try:
+            import baz
+        except ImportError:
+            raise ImportError("Gnuradio baz must be installed. Otherwise, try osmosdr")
         source = baz.rtl_source_c(defer_creation=True)
         source.set_verbose(True)
         source.set_vid(0x0)
@@ -36,6 +38,11 @@ class RtlBlock(BaseGrBlock):
         return source
     
     def _make_osmo_source(self):
+        try:
+            import osmosdr
+        except ImportError:
+            raise ImportError("Gnuradio osmo-sdr must be installed. Otherwise, try gr-baz")
+        import osmosdr
         source = osmosdr.source_c( args="nchan=" + str(1) + " " + ""  )
         source.set_sample_rate(self.samp_rate)
 #        self.osmosdr_source_c_0.set_center_freq(freq, 0)
