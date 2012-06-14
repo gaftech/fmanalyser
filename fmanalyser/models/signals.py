@@ -20,8 +20,10 @@ class ScanCompletedEvent(Event):
 scan_completed = EventSignal(ScanCompletedEvent)
 
 class FftScanUpdateEvent(Event):
-    def __init__(self, center_freq, rel_freqs, levels):
+    def __init__(self, center_freq, raw_freqs, raw_levels, cleaned_freqs, cleaned_levs):
         self.center_freq = center_freq
-        self.rel_freqs = rel_freqs
-        self.levels = levels
+        self.raw_freqs = raw_freqs
+        self.raw_levels = raw_levels
+        self.cleaned_freqs = cleaned_freqs
+        self.cleaned_levs = cleaned_levs
 fft_scan_updated = EventSignal(FftScanUpdateEvent)

@@ -4,7 +4,7 @@
 # Title: FCD FM Receiver
 # Author: OZ9AEC
 # Description: Simple FM receiver using the Funcube Dongle
-# Generated: Thu May 31 16:41:15 2012
+# Generated: Wed Jun 13 18:11:17 2012
 ##################################################
 
 from gnuradio import audio
@@ -22,7 +22,7 @@ from grc_gnuradio import wxgui as grc_wxgui
 from optparse import OptionParser
 import wx
 
-class funcube_fft(grc_wxgui.top_block_gui):
+class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 
 	def __init__(self):
 		grc_wxgui.top_block_gui.__init__(self, title="FCD FM Receiver")
@@ -35,13 +35,14 @@ class funcube_fft(grc_wxgui.top_block_gui):
 		self.samp_rate = samp_rate = 96000
 		self.offset_fine = offset_fine = 0
 		self.offset_coarse = offset_coarse = 0
-		self.freq = freq = 91800000
+		self.freq = freq = 91600000
 		self.xlate_filter_taps = xlate_filter_taps = firdes.low_pass(1, samp_rate, 48000, 5000, firdes.WIN_HAMMING, 6.76)
 		self.width = width = 60000
 		self.trans = trans = 1500
 		self.sql_lev = sql_lev = -100
 		self.rx_freq = rx_freq = freq+(offset_coarse+offset_fine)
 		self.rf_gain = rf_gain = 20
+		self.mixer_gain = mixer_gain = 20
 		self.display_selector = display_selector = 0
 		self.af_gain = af_gain = 1
 
@@ -171,6 +172,29 @@ class funcube_fft(grc_wxgui.top_block_gui):
 			proportion=1,
 		)
 		self.GridAdd(_offset_coarse_sizer, 6, 2, 1, 2)
+		_mixer_gain_sizer = wx.BoxSizer(wx.VERTICAL)
+		self._mixer_gain_text_box = forms.text_box(
+			parent=self.GetWin(),
+			sizer=_mixer_gain_sizer,
+			value=self.mixer_gain,
+			callback=self.set_mixer_gain,
+			label="RF",
+			converter=forms.float_converter(),
+			proportion=0,
+		)
+		self._mixer_gain_slider = forms.slider(
+			parent=self.GetWin(),
+			sizer=_mixer_gain_sizer,
+			value=self.mixer_gain,
+			callback=self.set_mixer_gain,
+			minimum=-5,
+			maximum=30,
+			num_steps=35,
+			style=wx.SL_HORIZONTAL,
+			cast=float,
+			proportion=1,
+		)
+		self.GridAdd(_mixer_gain_sizer, 7, 3, 1, 1)
 		self._freq_text_box = forms.text_box(
 			parent=self.GetWin(),
 			value=self.freq,
@@ -263,25 +287,28 @@ class funcube_fft(grc_wxgui.top_block_gui):
 		self.gr_simple_squelch_cc_0 = gr.simple_squelch_cc(sql_lev, 1)
 		self.gr_nlog10_ff_0 = gr.nlog10_ff(10, 1, 0)
 		self.gr_multiply_const_vxx_1 = gr.multiply_const_vff((af_gain, ))
+		self.gr_dc_blocker_0 = gr.dc_blocker_cc(256, True)
 		self.gr_complex_to_mag_squared_0 = gr.complex_to_mag_squared(1)
 		self.fftsink = fftsink2.fft_sink_c(
 			self.GetWin(),
 			baseband_freq=rx_freq*display_selector,
 			y_per_div=10,
-			y_divs=10,
+			y_divs=12,
 			ref_level=0,
 			ref_scale=1.0,
 			sample_rate=samp_rate,
-			fft_size=512,
+			fft_size=2048,
 			fft_rate=15,
 			average=True,
 			avg_alpha=0.5,
 			title="",
 			peak_hold=False,
-			size=(400,200),
+			win=window.blackmanharris,
+			size=(800,200),
 		)
-		self.GridAdd(self.fftsink.win, 0, 0, 5, 8)
+		self.GridAdd(self.fftsink.win, 0, 0, 5, 4)
 		self.fcd_source_c_1 = fcd.source_c("hw:1")
+		self.fcd_source_c_1.set_mixer_gain(mixer_gain)
 		self.fcd_source_c_1.set_freq_corr(-120)
 		self.fcd_source_c_1.set_freq(freq)
 		    
@@ -294,13 +321,14 @@ class funcube_fft(grc_wxgui.top_block_gui):
 		self.connect((self.fcd_source_c_1, 0), (self.xlating_fir_filter, 0))
 		self.connect((self.gr_complex_to_mag_squared_0, 0), (self.gr_nlog10_ff_0, 0))
 		self.connect((self.gr_nlog10_ff_0, 0), (self.power_sink, 0))
-		self.connect((self.fcd_source_c_1, 0), (self.fftsink, 0))
 		self.connect((self.gr_multiply_const_vxx_1, 0), (self.audio_sink, 1))
 		self.connect((self.gr_multiply_const_vxx_1, 0), (self.audio_sink, 0))
 		self.connect((self.gr_simple_squelch_cc_0, 0), (self.nbfm_normal, 0))
 		self.connect((self.nbfm_normal, 0), (self.gr_multiply_const_vxx_1, 0))
 		self.connect((self.low_pass_filter, 0), (self.gr_simple_squelch_cc_0, 0))
-		self.connect((self.fcd_source_c_1, 0), (self.gr_complex_to_mag_squared_0, 0))
+		self.connect((self.fcd_source_c_1, 0), (self.gr_dc_blocker_0, 0))
+		self.connect((self.gr_dc_blocker_0, 0), (self.gr_complex_to_mag_squared_0, 0))
+		self.connect((self.gr_dc_blocker_0, 0), (self.fftsink, 0))
 
 	def get_samp_rate(self):
 		return self.samp_rate
@@ -370,9 +398,9 @@ class funcube_fft(grc_wxgui.top_block_gui):
 
 	def set_sql_lev(self, sql_lev):
 		self.sql_lev = sql_lev
+		self.gr_simple_squelch_cc_0.set_threshold(self.sql_lev)
 		self._sql_lev_slider.set_value(self.sql_lev)
 		self._sql_lev_text_box.set_value(self.sql_lev)
-		self.gr_simple_squelch_cc_0.set_threshold(self.sql_lev)
 
 	def get_rx_freq(self):
 		return self.rx_freq
@@ -391,26 +419,35 @@ class funcube_fft(grc_wxgui.top_block_gui):
 		self._rf_gain_text_box.set_value(self.rf_gain)
 		self.fcd_source_c_1.set_lna_gain(self.rf_gain)
 
+	def get_mixer_gain(self):
+		return self.mixer_gain
+
+	def set_mixer_gain(self, mixer_gain):
+		self.mixer_gain = mixer_gain
+		self._mixer_gain_slider.set_value(self.mixer_gain)
+		self._mixer_gain_text_box.set_value(self.mixer_gain)
+		self.fcd_source_c_1.set_mixer_gain(self.mixer_gain)
+
 	def get_display_selector(self):
 		return self.display_selector
 
 	def set_display_selector(self, display_selector):
 		self.display_selector = display_selector
-		self._display_selector_chooser.set_value(self.display_selector)
 		self.fftsink.set_baseband_freq(self.rx_freq*self.display_selector)
+		self._display_selector_chooser.set_value(self.display_selector)
 
 	def get_af_gain(self):
 		return self.af_gain
 
 	def set_af_gain(self, af_gain):
 		self.af_gain = af_gain
+		self.gr_multiply_const_vxx_1.set_k((self.af_gain, ))
 		self._af_gain_slider.set_value(self.af_gain)
 		self._af_gain_text_box.set_value(self.af_gain)
-		self.gr_multiply_const_vxx_1.set_k((self.af_gain, ))
 
 if __name__ == '__main__':
 	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
 	(options, args) = parser.parse_args()
-	tb = funcube_fft()
+	tb = fcd_testing_gui_block()
 	tb.Run(True)
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from fmanalyser.conf import EnableableOptionHolder, options
 from fmanalyser.exceptions import OutOfBoundFrequency, BadOptionValue
-from fmanalyser.models.signals import scan_updated, fft_scan_updated,\
+from fmanalyser.models.signals import scan_updated, fft_scan_updated, \
     scan_completed
 from fmanalyser.utils.log import Loggable
 from fmanalyser.utils.render import render_frequency
@@ -9,6 +9,7 @@ from itertools import izip
 import datetime
 import fmanalyser
 import threading
+import numpy as np
 
 MODEL_BASIC = 'basic'
 MODEL_FFT = 'fft'
@@ -57,7 +58,6 @@ class BaseBandscan(Loggable, EnableableOptionHolder):
     
     def __init__(self, **kwargs):
         super(BaseBandscan, self).__init__(**kwargs)
-        self._lock = threading.Lock()
         self.init()
         self.reset()    
 
@@ -81,19 +81,6 @@ class BaseBandscan(Loggable, EnableableOptionHolder):
 
     def is_complete(self):
         raise NotImplementedError()
-    
-    def round_freq(self, freq):
-        return int(round(freq/self.step)*self.step)
-    
-    def _round_freq_interlace(self, lst):
-        return max(lst)
-
-    def _update(self, freq, data):
-        try:
-            self._pending.remove(freq)
-        except ValueError:
-            pass
-        self._data[freq].append(data)
 
     def save_ref(self):
         assert self.is_complete()
@@ -112,14 +99,13 @@ class BaseBandscan(Loggable, EnableableOptionHolder):
 """
         output = template % infos
         fileobj.write(output)
+        n = 0
         for f,l in self:
             fileobj.write('%s %s\n' % (f,l))
+            n += 1
+        return n
 
 class BaseMultipassBandscan(BaseBandscan):
-
-    def reset(self):
-        self._pending = self._freqs[:]
-        self._data = dict((f, []) for f in self._freqs)
 
     def get_next_frequency(self):
         """Returns the next frequency without value associated or `Ǹone` if scan is complete."""
@@ -130,9 +116,6 @@ class BaseMultipassBandscan(BaseBandscan):
     
     def is_complete(self):
         return not len(self._pending)
-
-    def _multipass_interlace(self, lst):
-        return max(lst)
 
 class Bandscan(BaseMultipassBandscan):
 
@@ -145,6 +128,10 @@ class Bandscan(BaseMultipassBandscan):
                 "start frequency (%s) must be lower than stop frequency (%s)" % (
                 self.start, self.stop))
         self._freqs = range(self.start, self.stop+self.step, self.step)
+
+    def reset(self):
+        self._pending = self._freqs[:]
+        self._data = dict((f,[]) for f in self._freqs)
 
     def iter_interlaced(self):
         for f in self._freqs:
@@ -170,62 +157,162 @@ class Bandscan(BaseMultipassBandscan):
             raise OutOfBoundFrequency(freq)
         
     def update(self, freq_levels, round_freqs=False, interlace=True):
+        
+        _freq_levels = list(freq_levels)
+        
         if round_freqs:
-            freq_levels = [(self.round_freq(f),l) for f,l in freq_levels]
+            _freq_levels = [(self.round_freq(f),l) for f,l in _freq_levels]
+        
         if interlace:
             d = {}
-            for f,l in freq_levels:
+            for f,l in _freq_levels:
                 d.setdefault(f,[]).append(l)
-            freq_levels = [(f,self._round_freq_interlace(lst)) for f,lst in d.iteritems()]
-        with self._lock:
-            updated_freqs = set()
-            for freq, level in freq_levels:
-                self._update(freq, level)
-                updated_freqs.add(freq)
-                self.logger.debug("%s updated : %s => %s" % (self, freq, level))
-            freq_levels = [(f, self.get(f, round_freq=False)) for f in sorted(updated_freqs)]
-        scan_updated.send(self, freq_levels)
+            _freq_levels = [(f,self._round_freq_interlace(lst)) for f,lst in d.iteritems()]
+        
+        for freq, level in _freq_levels:
+            self._update(freq, level)
+            self.logger.debug("%s updated : %s => %s" % (self, freq, level))
+        
+        scan_updated.send(self, _freq_levels)
         if self.is_complete():
             scan_completed.send(self)
 
+    def _update(self, freq, data):
+        try:
+            self._pending.remove(freq)
+        except ValueError:
+            pass
+        self._data[freq].append(data)
+
+    def _multipass_interlace(self, lst):
+        return max(lst)
+    
+    def _round_freq_interlace(self, lst):
+        return max(lst)
+
+class FFTHolder(object):
+    
+    def __init__(self, size, span, step, dc_skip, side_skip):
+        self._size = size
+        self._span = span
+        self._step = step
+        self._dc_skip = dc_skip
+        self._side_skip = side_skip
+        
+        self._raw_freqs = np.linspace(-span/2, span/2, size)
+        self._data = {}
+        
+        self._level_arrays = []
+    
+    def round_freq(self, freq):
+        return int(round(freq/self._step)*self._step)
+    
+    def add_level_arrays(self, *level_arrays):
+        assert all(len(a)==self._size for a in level_arrays)
+        levels = self._add_interlace(*level_arrays)
+        return self.add_levels(levels)
+    
+    def add_levels(self, levels):
+        assert len(levels) == self._size
+        m = {}
+        for raw_f, l in izip(self._raw_freqs, levels):
+            if abs(raw_f) < self._dc_skip:
+                continue
+            if abs(raw_f) > self._span/2 - self._side_skip:
+                continue
+            
+            f = self.round_freq(raw_f)
+            m.setdefault(f, []).append(l)
+        
+        cleaned_freqs = []
+        cleaned_levs = []
+        for f, levs in sorted(m.items()):
+            l = self._round_interlace(levs)
+            self._data.setdefault(f, []).append(l)
+            cleaned_freqs.append(f)
+            cleaned_levs.append(l)
+        return cleaned_freqs, cleaned_levs
+    
+    def __iter__(self):
+        for f, levs in sorted(self._data.items()):
+            yield f, self._multipass_interlace(levs)
+        
+    def iteritems(self):
+        for f, levs in self._data.iteritems():
+            yield f, self._multipass_interlace(levs)
+        
+    def _add_interlace(self, *levels):
+        levels = list(levels)
+        out = levels.pop()
+        while len(levels):
+            out = np.maximum(out, levels.pop())
+        return out
+    
+    def _round_interlace(self, level_list):
+        return max(level_list)
+    
+    def _multipass_interlace(self, level_list):
+        return max(level_list)
+    
+    @property
+    def freqs(self):
+        return self._freqs
+    
 class FFTBandscan(BaseMultipassBandscan):
     
-    start_cf = options.CarrierFrequencyOption(required=True)
-    stop_cf = options.CarrierFrequencyOption()
+    start = options.CarrierFrequencyOption(required=True)
+    stop = options.CarrierFrequencyOption()
     jump = options.IntOption(required=True)
-    span = options.IntOption(required=True)
+#    span = options.IntOption(default=0,
+#        ini_help="bandwidth of each fft (0: auto)")
     dc_skip = options.IntOption(default=0,
         ini_help="width (kHz) of fft values to drop around each center frequency")
     side_skip = options.IntOption(default=0)
     
     def init(self):
-        if not self.stop_cf:
-            self.stop_cf = self.start_cf
+        if not self.stop:
+            self.stop = self.start
         
         # Value checks
         #TODO: jump/span/reject value checks (ie full band coverage check)
     
-        # Computed fixed attributes
-        low = min(self.start_cf, self.stop_cf)
-        high = max(self.start_cf, self.stop_cf)
-        self.start = low - self.span/2 + self.side_skip
-        self.stop = high + self.span/2 - self.side_skip
-        
         # option fixing
         self.jump = abs(self.jump)
-        if self.stop_cf < self.start_cf:
+        if self.stop < self.start:
             self.jump = - self.jump
         
         # Data init
-        self._freqs = range(self.start_cf, self.stop_cf+self.jump, self.jump)
+        self._freqs = range(self.start, self.stop+self.jump, self.jump)
+    
+    def reset(self):
+        self._pending = self._freqs[:]
+        self._data = {}
+    
+    def update(self, center_freq, rel_freqs, level_arrays):
         
-    def update(self, center_freq, rel_freqs, levels):
-#        if not isinstance(rel_freqs, numpy.array):
-#            rel_freqs = numpy.array(rel_freqs)
-#        if not isinstance(levels, numpy.array):
-#            levels = numpy.array(levels)
-        self._update(center_freq, (rel_freqs, levels))
-        fft_scan_updated.send(self, center_freq, rel_freqs, levels)
+        if center_freq not in self._data:
+            self._data[center_freq] = FFTHolder(
+                size = len(rel_freqs),
+                span = max(rel_freqs) - min(rel_freqs),
+                step = self.step,
+                dc_skip = self.dc_skip,
+                side_skip = self.side_skip,
+            )
+        holder = self._data[center_freq] 
+        _freqs, _levs = holder.add_level_arrays(*level_arrays)
+        
+        try:
+            self._pending.remove(center_freq)
+        except ValueError:
+            pass
+        
+        fft_scan_updated.send(self,
+            center_freq=center_freq,
+            raw_freqs = rel_freqs,
+            raw_levels = level_arrays,
+            cleaned_freqs = _freqs,
+            cleaned_levs = _levs,
+        )
         if self.is_complete():
             scan_completed.send(self)
 
@@ -238,34 +325,12 @@ class FFTBandscan(BaseMultipassBandscan):
     
     def iter_interlaced(self):
         bigdata = {}
-        for cf, ffts in self._data.iteritems():
-            if not ffts:
-                continue
-            fft = self._get_multipass_fft(ffts)
-            for rel_freq, level in izip(*fft):
-                bigdata.setdefault(cf+rel_freq, []).append(level)
+        for cf, holder in self._data.iteritems():
+            for f, l in holder.iteritems():
+                bigdata.setdefault(cf+f, []).append(l)
 
         for f, levels in sorted(bigdata.items()):
             yield f, self._overlap_interlace(levels)
-    
-    def _get_multipass_fft(self, ffts):
-        rounded_ffts = [self._clean_fft(freqs, levels) for freqs, levels in ffts]
-        rounded_freqs = rounded_ffts[0][0]
-        levels = [fft[1] for fft in rounded_ffts]
-        interlaced_levels = [self._multipass_interlace(lst) for lst in izip(*levels)]
-        return rounded_freqs, interlaced_levels
-    
-    def _clean_fft(self, freqs, levels):
-        rounded = {}
-        for f,l in izip(freqs, levels):
-            if abs(f) < self.dc_skip/2 or abs(f) >= (self.span/2-self.side_skip):
-                continue
-            rounded.setdefault(self.round_freq(f), []).append(l)
-        _freqs, _levels = [], []
-        for f,lst in sorted(rounded.items()):
-            _freqs.append(f)
-            _levels.append(self._round_freq_interlace(lst))
-        return _freqs, _levels
     
     def _overlap_interlace(self, lst):
         return max(lst)        
@@ -306,11 +371,11 @@ This section can define options that will be set as default for all sub-scans.
         
     @property
     def start(self):
-        return (min(s.start for s in self.scans))
+        return (min(min(s.start,s.stop) for s in self.scans))
 
     @property
     def stop(self):
-        return (max(s.stop for s in self.scans))
+        return (max(max(s.start,s.stop) for s in self.scans))
     
     def _scan_completed(self, signal, sender):
         if sender is not self and self.is_complete():

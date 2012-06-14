@@ -36,7 +36,10 @@ class Rtl2832(Device):
     def tune_hz(self, f):
         self.logger.debug('tune: %s MHz' % (f/1e6,))
         self.client.set_center_freq(f)
-        
+    
+    def get_sample_rate(self):
+        return self.client.get_sample_rate()/1000
+      
     def set_sample_rate(self, khz):
         self.client.set_sample_rate(khz*1000)
         

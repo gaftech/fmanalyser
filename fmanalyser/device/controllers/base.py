@@ -4,62 +4,37 @@ from fmanalyser.device import Worker
 from fmanalyser.utils.log import Loggable
 from fmanalyser.models.bandscan import FFTBandscan, MultiScan
 
-class DeviceController(Loggable, EnableableOptionHolder):
+class BaseDeviceController(Loggable, EnableableOptionHolder):
     
     section_name = 'device'
-    device_class = None
     model = options.Option(default='p175')
     scan_lock_time = options.FloatOption(default=1)
     
-    @classmethod
-    def from_config_dict(cls, confdict, name=None, defaults=None, extras=None):
-        if cls is DeviceController:
-            from fmanalyser.device.controllers import get_controller_class
-            opts = confdict.copy()
-            model = cls._options['model'].pop_val_from_dict(opts) 
-            subcls = get_controller_class(model)
-            return subcls.from_config_dict(opts, name, defaults, extras)
-        return super(DeviceController, cls).from_config_dict(confdict, name, defaults, extras) 
-    
-    @classmethod
-    def get_config_options(cls):
-        opts = super(DeviceController, cls).get_config_options()
-        if not cls is DeviceController:
-            opts.update(cls.device_class.get_config_options())
-        return opts
-        
-    
     def __init__(self, name=None, channels=(), scans=(), **kwargs):
-        
-        if self.device_class is None:
-            raise ValueError("%s subclasses must define a `device_class` attribute")
-        
-        # Device and worker init
-        #TODO: device should be owned by worker only.
-        # Maybe we can pass the device constructor to the worker.
-        # Or maybe, we should keep the device and provides to the worker method to build a new one if necessary
-        # The underlying idea is that we may want to make devices that needs to restart from a fresh instance 
-        # in case of problem.
-        dev_kwargs = dict(
-            (k, kwargs.pop(k)) for k in self.device_class._options
-            if k in kwargs
-        )
-        self._device = self.device_class(**dev_kwargs)
+        self._device = None
         self._worker = None
         self._last_enqueued = None
-        
+        self._closed = False
         self._channels = tuple(channels)
         self._scans = tuple(scans)
-        
-        super(DeviceController, self).__init__(name=name, **kwargs)
+        super(BaseDeviceController, self).__init__(name=name, **kwargs)
+    
+    @property
+    def device(self):
+        if self._device is None and not self._closed:
+            try:
+                self._device = self.make_device()
+            except:
+                self.close()
+                raise
+        return self._device
+    
+    def make_device(self):
+        raise NotImplementedError()
     
     @property
     def worker(self):
         return self._worker
-    
-    @property
-    def device(self):
-        return self._device
     
     @property
     def channels(self):
@@ -70,24 +45,33 @@ class DeviceController(Loggable, EnableableOptionHolder):
         return self._scans
     
     def start_worker(self):
+        if self._closed:
+            raise RuntimeError("We are _closed !")
         if self._worker is not None:
-            raise RuntimeError('Worker already started')
+            raise RuntimeError("Worker already started")
         try:
             self._worker = Worker(device=self.device)
             self._worker.run()
         except:
-            self.stop_worker()
+            self.close()
             raise
 
-    def stop_worker(self):
+    def close(self):
+        self._close()
+        self._closed = True
+
+    def _close(self):
         if self._worker is not None:
             self._worker.stop()
             self._worker = None
-    
+        if self._device is not None:
+            self._device.close()
+            self._device = None
+
     def check_worker(self):
         if self._worker is not None and self._worker.exc_info is not None:
             self.logger.warning('Something happened to worker thread, restarting it...')
-            self.stop_worker()
+            self._close()
             self.start_worker()
     
     def should_enqueue(self):
@@ -153,22 +137,56 @@ class DeviceController(Loggable, EnableableOptionHolder):
     def _update_fft_scan(self, worker, next_freq, scan):
         worker.device.tune(next_freq)
         worker.sleep(self.scan_lock_time)
-        rel_freqs, levels = self._probe_fft(worker,
-            span = scan.span
-        )
-        scan.update(next_freq, rel_freqs, levels)        
+        rel_freqs, levels = self._probe_fft(worker)
+        scan.update(next_freq, rel_freqs, levels)
     
-    def _probe_fft(self, worker, span):
+    def _probe_fft(self, worker):
         raise NotImplementedError()
     
-    def close(self):
-        self.stop_worker()
-        self.device.close()
+
+
+class DeviceController(BaseDeviceController):
     
-class GrDeviceController(DeviceController):
+    device_class = None
     
-    def _probe_scan_level(self, worker):
-        return worker.device.get_signal_level()
+    @classmethod
+    def from_config_dict(cls, confdict, name=None, defaults=None, extras=None):
+        if cls is DeviceController:
+            from fmanalyser.device.controllers import get_controller_class
+            opts = confdict.copy()
+            model = cls._options['model'].pop_val_from_dict(opts) 
+            subcls = get_controller_class(model)
+            return subcls.from_config_dict(opts, name, defaults, extras)
+        return super(DeviceController, cls).from_config_dict(confdict, name, defaults, extras) 
+    
+    @classmethod
+    def get_config_options(cls):
+        opts = super(DeviceController, cls).get_config_options()
+        if not cls is DeviceController:
+            opts.update(cls.device_class.get_config_options())
+        return opts
+        
+    
+    def __init__(self, name=None, **kwargs):
+        
+        if self.device_class is None:
+            raise ValueError("%s subclasses must define a `device_class` attribute")
+        
+        # Device and worker init
+        #TODO: device should be owned by worker only.
+        # Maybe we can pass the device constructor to the worker.
+        # Or maybe, we should keep the device and provides to the worker method to build a new one if necessary
+        # The underlying idea is that we may want to make devices that needs to restart from a fresh instance 
+        # in case of problem.
+        self._dev_kwargs = dict(
+            (k, kwargs.pop(k)) for k in self.device_class._options
+            if k in kwargs
+        )
+        
+        super(DeviceController, self).__init__(name=name, **kwargs)
+    
+    def make_device(self):
+        return self.device_class(**self._dev_kwargs)
     
     
     

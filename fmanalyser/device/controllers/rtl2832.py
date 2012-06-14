@@ -11,14 +11,12 @@ class Rtl2832Controller(DeviceController):
     fft_size = options.IntOption(default=1024)
     sample_count = options.IntOption(default=2**18)
 
-    def _scan_init(self, worker, scan):
-        worker.device.set_sample_rate(scan.span)
-
-    def _probe_fft(self, worker, span):
+    def _probe_fft(self, worker):
+        span = worker.device.get_sample_rate()
         samples = worker.device.read_samples(self.sample_count)
         levels, freqs = mlab.psd(samples,
             NFFT = self.fft_size,
             Fs = span*1000,
             scale_by_freq = False
         )
-        return freqs/1e3, 10*numpy.log10(levels)
+        return freqs/1e3, (10*numpy.log10(levels),)

@@ -1,9 +1,8 @@
-#@PydevCodeAnalysisIgnore
 #!/usr/bin/env python
 ##################################################
 # Gnuradio Python Flow Graph
 # Title: Gr Rtl
-# Generated: Mon May 21 16:34:41 2012
+# Generated: Wed Jun 13 21:48:49 2012
 ##################################################
 
 from gnuradio import audio

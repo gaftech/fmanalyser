@@ -3,7 +3,7 @@
 from fmanalyser.conf import fmconfig
 from fmanalyser.device.controllers.base import DeviceController
 from fmanalyser.exceptions import CommandError
-from fmanalyser.models.bandscan import BaseBandscan
+from fmanalyser.models.bandscan import BaseBandscan, FFTBandscan
 from fmanalyser.models.signals import scan_updated, fft_scan_updated
 from fmanalyser.utils.command import BaseCommand
 from itertools import izip
@@ -12,7 +12,7 @@ import os
 import subprocess
 import sys
 import tempfile
-import shutil
+import numpy
 
 class Command(BaseCommand):
 
@@ -100,8 +100,9 @@ class Command(BaseCommand):
             self._gp = subprocess.Popen(['gnuplot'], stdin=subprocess.PIPE)
         except OSError:
             raise CommandError("can't open gnuplot, please check if it's installed")        
-        self._gpw('set xrange [%f:%f]' % (self.scan.start,
-                                          self.scan.stop))
+        if self.scan.start != self.scan.stop:
+            self._gpw('set xrange [%f:%f]' % (self.scan.start,
+                                              self.scan.stop))
         self._gpw('lower')
         
         self._gp_files = set()
@@ -110,12 +111,9 @@ class Command(BaseCommand):
         
         if self.options.load_ref and os.path.exists(self.scan.ref_file):
             #TODO: Bandscan must implement a way to provide its reference and to load a file
-#            fpath = os.path.join(self._gp_tmp_dir, 'ref.scan')
-#            shutil.copy2(self.scan.ref_file, fpath)
             self._gp_add_file(self.scan.ref_file)
         
         scan_updated.connect(self._gp_update,)
-#        scan_completed.connect(self._gp_completed, self.scan)
         fft_scan_updated.connect(self._gp_update,)
         if self.options.debug:
             fft_scan_updated.connect(self._gp_debug_fft)
@@ -131,21 +129,27 @@ class Command(BaseCommand):
     
     def _gpw(self, command):
         command = '%s\n' % command
+        self.logger.debug("gnuplot> %s" % (command,))
         self._gp.stdin.write(command)
     
     def _gp_update(self, signal, sender, event):
         # Global scan
-        if self.options.debug or self.scan.is_complete():
-            fpath = os.path.join(self._gp_tmp_dir, 'global.scan')
-            with open(fpath, 'w') as fp:
-                self.scan.dump(fp)
-            self._gp_add_file(fpath)
+#        if self.scan.is_complete():
+        fpath = os.path.join(self._gp_tmp_dir, 'global.scan')
+        with open(fpath, 'w') as fp:
+            n = self.scan.dump(fp)
+        self.logger.debug("global.scan: %s lines written" % (n,))
+        self._gp_add_file(fpath)
         
     def _gp_debug_fft(self,  signal, sender, event):
         fname = '%s_MHz' % (event.center_freq/1e3)
         fpath = os.path.join(self._gp_tmp_dir, fname)
         with open(fpath, 'w') as fp:
-            for f, l in izip(event.rel_freqs, event.levels):
+            lev_arrays = list(event.raw_levels)
+            levs = lev_arrays.pop()
+            while len(lev_arrays):
+                levs = numpy.maximum(levs,lev_arrays.pop())
+            for f, l in izip(event.raw_freqs, levs):
                 fp.write('%s %s\n' % (f+event.center_freq, l))
         self._gp_add_file(fpath)
     

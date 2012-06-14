@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 ##################################################
 # Gnuradio Python Flow Graph
-# Title: Gr Rtl Gui
-# Generated: Wed Jun 13 22:49:35 2012
+# Title: Gr Rtl Tcp Gui
+# Generated: Wed Jun  6 16:47:35 2012
 ##################################################
 
 from gnuradio import audio
@@ -20,10 +20,10 @@ from optparse import OptionParser
 import osmosdr
 import wx
 
-class gr_rtl_gui(grc_wxgui.top_block_gui):
+class gr_rtl_tcp_gui(grc_wxgui.top_block_gui):
 
 	def __init__(self):
-		grc_wxgui.top_block_gui.__init__(self, title="Gr Rtl Gui")
+		grc_wxgui.top_block_gui.__init__(self, title="Gr Rtl Tcp Gui")
 		_icon_path = "/usr/share/icons/hicolor/32x32/apps/gnuradio-grc.png"
 		self.SetIcon(wx.Icon(_icon_path, wx.BITMAP_TYPE_ANY))
 
@@ -33,7 +33,6 @@ class gr_rtl_gui(grc_wxgui.top_block_gui):
 		self.freq = freq = 92000000
 		self.samp_rate = samp_rate = 3200000
 		self.rf_gain = rf_gain = 0
-		self.gain = gain = 0
 		self.freq_display = freq_display = freq
 		self.filter_trans = filter_trans = 5000
 		self.filter_decim = filter_decim = 8
@@ -44,29 +43,6 @@ class gr_rtl_gui(grc_wxgui.top_block_gui):
 		##################################################
 		# Blocks
 		##################################################
-		_gain_sizer = wx.BoxSizer(wx.VERTICAL)
-		self._gain_text_box = forms.text_box(
-			parent=self.GetWin(),
-			sizer=_gain_sizer,
-			value=self.gain,
-			callback=self.set_gain,
-			label='gain',
-			converter=forms.float_converter(),
-			proportion=0,
-		)
-		self._gain_slider = forms.slider(
-			parent=self.GetWin(),
-			sizer=_gain_sizer,
-			value=self.gain,
-			callback=self.set_gain,
-			minimum=-20,
-			maximum=20,
-			num_steps=100,
-			style=wx.SL_HORIZONTAL,
-			cast=float,
-			proportion=1,
-		)
-		self.Add(_gain_sizer)
 		_freq_sizer = wx.BoxSizer(wx.VERTICAL)
 		self._freq_text_box = forms.text_box(
 			parent=self.GetWin(),
@@ -130,19 +106,18 @@ class gr_rtl_gui(grc_wxgui.top_block_gui):
 		)
 		self.GridAdd(self.wxgui_fftsink2_0.win, 0, 0, 1, 3)
 		self.power_probe = gr.probe_avg_mag_sqrd_c(0, 1)
-		self.osmosdr_source_c_0 = osmosdr.source_c( args="nchan=" + str(1) + " " + ""  )
+		self.osmosdr_source_c_0 = osmosdr.source_c( args="nchan=" + str(1) + " " + "rtl_tcp=192.168.1.19:1234"  )
 		self.osmosdr_source_c_0.set_sample_rate(samp_rate)
 		self.osmosdr_source_c_0.set_center_freq(freq, 0)
 		self.osmosdr_source_c_0.set_freq_corr(0, 0)
 		self.osmosdr_source_c_0.set_gain_mode(0, 0)
-		self.osmosdr_source_c_0.set_gain(gain, 0)
+		self.osmosdr_source_c_0.set_gain(0, 0)
 		self.low_pass_filter_0_0 = gr.fir_filter_ccf(filter_decim, firdes.low_pass(
 			2, samp_rate, filter_cutoff, filter_trans, firdes.WIN_HAMMING, 6.76))
 		self.low_pass_filter_0 = gr.fir_filter_ccf(8, firdes.low_pass(
 			2, samp_rate, 25000, 50000, firdes.WIN_HAMMING, 6.76))
 		self.gr_nlog10_ff_0_0 = gr.nlog10_ff(10, 1, 0)
 		self.gr_multiply_const_vxx_1 = gr.multiply_const_vff((af_gain, ))
-		self.gr_dc_blocker_0 = gr.dc_blocker_cc(32, True)
 		self.gr_complex_to_mag_squared_1 = gr.complex_to_mag_squared(1)
 		self._freq_display_static_text = forms.static_text(
 			parent=self.GetWin(),
@@ -202,10 +177,9 @@ class gr_rtl_gui(grc_wxgui.top_block_gui):
 		self.connect((self.low_pass_filter_0, 0), (self.blks2_wfm_rcv_0_0, 0))
 		self.connect((self.gr_multiply_const_vxx_1, 0), (self.audio_sink_0_0, 0))
 		self.connect((self.blks2_wfm_rcv_0_0, 0), (self.gr_multiply_const_vxx_1, 0))
-		self.connect((self.gr_dc_blocker_0, 0), (self.wxgui_fftsink2_0, 0))
 		self.connect((self.osmosdr_source_c_0, 0), (self.low_pass_filter_0, 0))
-		self.connect((self.osmosdr_source_c_0, 0), (self.gr_dc_blocker_0, 0))
 		self.connect((self.osmosdr_source_c_0, 0), (self.low_pass_filter_0_0, 0))
+		self.connect((self.osmosdr_source_c_0, 0), (self.wxgui_fftsink2_0, 0))
 
 	def get_freq(self):
 		return self.freq
@@ -213,36 +187,27 @@ class gr_rtl_gui(grc_wxgui.top_block_gui):
 	def set_freq(self, freq):
 		self.freq = freq
 		self.set_freq_display(self.freq)
+		self.osmosdr_source_c_0.set_center_freq(self.freq, 0)
+		self.wxgui_fftsink2_0.set_baseband_freq(self.freq)
 		self._freq_slider.set_value(self.freq)
 		self._freq_text_box.set_value(self.freq)
-		self.wxgui_fftsink2_0.set_baseband_freq(self.freq)
-		self.osmosdr_source_c_0.set_center_freq(self.freq, 0)
 
 	def get_samp_rate(self):
 		return self.samp_rate
 
 	def set_samp_rate(self, samp_rate):
 		self.samp_rate = samp_rate
-		self.Filtered_FFT.set_sample_rate(self.samp_rate/self.filter_decim)
-		self.wxgui_fftsink2_0.set_sample_rate(self.samp_rate)
 		self.low_pass_filter_0.set_taps(firdes.low_pass(2, self.samp_rate, 25000, 50000, firdes.WIN_HAMMING, 6.76))
 		self.low_pass_filter_0_0.set_taps(firdes.low_pass(2, self.samp_rate, self.filter_cutoff, self.filter_trans, firdes.WIN_HAMMING, 6.76))
 		self.osmosdr_source_c_0.set_sample_rate(self.samp_rate)
+		self.Filtered_FFT.set_sample_rate(self.samp_rate/self.filter_decim)
+		self.wxgui_fftsink2_0.set_sample_rate(self.samp_rate)
 
 	def get_rf_gain(self):
 		return self.rf_gain
 
 	def set_rf_gain(self, rf_gain):
 		self.rf_gain = rf_gain
-
-	def get_gain(self):
-		return self.gain
-
-	def set_gain(self, gain):
-		self.gain = gain
-		self.osmosdr_source_c_0.set_gain(self.gain, 0)
-		self._gain_slider.set_value(self.gain)
-		self._gain_text_box.set_value(self.gain)
 
 	def get_freq_display(self):
 		return self.freq_display
@@ -290,6 +255,6 @@ class gr_rtl_gui(grc_wxgui.top_block_gui):
 if __name__ == '__main__':
 	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
 	(options, args) = parser.parse_args()
-	tb = gr_rtl_gui()
+	tb = gr_rtl_tcp_gui()
 	tb.Run(True)
 
