@@ -4,7 +4,7 @@
 # Title: FCD FM Receiver
 # Author: OZ9AEC
 # Description: Simple FM receiver using the Funcube Dongle
-# Generated: Wed Jun 13 18:11:17 2012
+# Generated: Thu Jun 14 15:57:20 2012
 ##################################################
 
 from gnuradio import audio
@@ -328,7 +328,7 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 		self.connect((self.low_pass_filter, 0), (self.gr_simple_squelch_cc_0, 0))
 		self.connect((self.fcd_source_c_1, 0), (self.gr_dc_blocker_0, 0))
 		self.connect((self.gr_dc_blocker_0, 0), (self.gr_complex_to_mag_squared_0, 0))
-		self.connect((self.gr_dc_blocker_0, 0), (self.fftsink, 0))
+		self.connect((self.fcd_source_c_1, 0), (self.fftsink, 0))
 
 	def get_samp_rate(self):
 		return self.samp_rate
@@ -433,8 +433,8 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 
 	def set_display_selector(self, display_selector):
 		self.display_selector = display_selector
-		self.fftsink.set_baseband_freq(self.rx_freq*self.display_selector)
 		self._display_selector_chooser.set_value(self.display_selector)
+		self.fftsink.set_baseband_freq(self.rx_freq*self.display_selector)
 
 	def get_af_gain(self):
 		return self.af_gain

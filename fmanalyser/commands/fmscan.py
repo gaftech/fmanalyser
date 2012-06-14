@@ -34,7 +34,10 @@ class Command(BaseCommand):
         make_option('-o', '--output-file',
             help="save current scan to file"),
         make_option('-d', '--debug', action='store_true', default=False,
-            help="display debug things like sub-scans...")
+            help="display debug things like sub-scans..."),
+        #TODO: Allow passing device options to override the config file ones
+#        make_option('--device-options',
+#            help="")
     )
     
     def alter_conf(self, config):

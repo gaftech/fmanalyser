@@ -1,25 +1,24 @@
 # -*- coding: utf-8 -*-
 from gnuradio import gr, blks2
 
-class BaseGrBlock(gr.top_block):
+class TopBlock(gr.top_block):
     
     def __init__(self,
                  samp_rate,
+                 source,
                  fft_size=1024,
                  dc_blocker=True,
                  dc_blocker_length=32,
                  dc_blocker_long_form=True,
     ):
-        super(BaseGrBlock, self).__init__()
+        super(TopBlock, self).__init__()
         
-        chain = []
-        
+        self.source = source
         self.samp_rate = samp_rate
-        self.fft_size = fft_size
+        self.fft_size = fft_size        
         
-        self.source = self.make_source()
-        chain.append(self.source)
-        
+        chain = [self.source]
+
         if dc_blocker:
             self._dc_blocker = gr.dc_blocker_cc(dc_blocker_length, dc_blocker_long_form)
             chain.append(self._dc_blocker)
@@ -42,9 +41,6 @@ class BaseGrBlock(gr.top_block):
         
         self.connect(*chain)
         
-    def make_source(self):
-        raise NotImplementedError()
-    
     def set_freq(self, f):
         self.source.set_freq(f)
         
