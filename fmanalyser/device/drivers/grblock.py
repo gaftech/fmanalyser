@@ -42,5 +42,16 @@ class TopBlock(gr.top_block):
         self.connect(*chain)
         
     def set_freq(self, f):
-        self.source.set_freq(f)
+        try:
+            # gr-fcd case
+            return self.source.set_freq(f)
+        except AttributeError:
+            pass
+        try:
+            # osmo source block case
+            return self.source.set_center_freq(f,0)
+        except AttributeError:
+            pass
+        
+        return self.source.set_frequency(f)
         

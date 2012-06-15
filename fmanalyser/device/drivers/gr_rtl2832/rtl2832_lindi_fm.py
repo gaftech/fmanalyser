@@ -3,7 +3,7 @@
 # Gnuradio Python Flow Graph
 # Title: lindi fm
 # Author: lindi
-# Generated: Thu Jun 14 09:49:14 2012
+# Generated: Fri Jun 15 08:22:58 2012
 ##################################################
 
 from datetime import datetime
@@ -26,7 +26,7 @@ import threading
 import time
 import wx
 
-class top_block(grc_wxgui.top_block_gui):
+class rtl2832_lindi_fm(grc_wxgui.top_block_gui):
 
 	def __init__(self, ftune=0, mute=-25.0):
 		grc_wxgui.top_block_gui.__init__(self, title="lindi fm")
@@ -318,7 +318,7 @@ class top_block(grc_wxgui.top_block_gui):
 			false=False,
 		)
 		self.GridAdd(self._record_check_box, 0, 5, 1, 1)
-		self.osmosdr_source_c_0 = osmosdr.source_c( args="nchan=" + str(1) + " " + "rtl=0"  )
+		self.osmosdr_source_c_0 = osmosdr.source_c( args="nchan=" + str(1) + " " + ""  )
 		self.osmosdr_source_c_0.set_sample_rate(samp_rate)
 		self.osmosdr_source_c_0.set_center_freq(frequency+fine+finer, 0)
 		self.osmosdr_source_c_0.set_freq_corr(0, 0)
@@ -394,9 +394,9 @@ class top_block(grc_wxgui.top_block_gui):
 	def set_frequency(self, frequency):
 		self.frequency = frequency
 		self.set_cur_freq(self.frequency+self.fine+self.finer)
-		self.osmosdr_source_c_0.set_center_freq(self.frequency+self.fine+self.finer, 0)
 		self._frequency_slider.set_value(self.frequency)
 		self._frequency_text_box.set_value(self.frequency)
+		self.osmosdr_source_c_0.set_center_freq(self.frequency+self.fine+self.finer, 0)
 
 	def get_finer(self):
 		return self.finer
@@ -545,6 +545,6 @@ if __name__ == '__main__':
 	parser.add_option("", "--mute", dest="mute", type="eng_float", default=eng_notation.num_to_str(-25.0),
 		help="Set Mute Level [default=%default]")
 	(options, args) = parser.parse_args()
-	tb = top_block(ftune=options.ftune, mute=options.mute)
+	tb = rtl2832_lindi_fm(ftune=options.ftune, mute=options.mute)
 	tb.Run(True)
 

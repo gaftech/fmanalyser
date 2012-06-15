@@ -15,6 +15,7 @@ class FuncubeController(BaseGrController):
         port = self.port
         if port is None:
             port = self._autodetect()
+            self.logger.debug("Fcd soundcard found at hw:%s" % port)
         source = fcd.source_c("hw:%s" % port)
         source.set_freq_corr(-120)
         return TopBlock(samp_rate=self.samp_rate, source=source)

@@ -4,13 +4,12 @@
 # Title: FCD FM Receiver
 # Author: OZ9AEC
 # Description: Simple FM receiver using the Funcube Dongle
-# Generated: Thu Jun 14 23:49:49 2012
+# Generated: Fri Jun 15 08:14:01 2012
 ##################################################
 
 from gnuradio import audio
 from gnuradio import blks2
 from gnuradio import eng_notation
-from gnuradio import fcd
 from gnuradio import gr
 from gnuradio import window
 from gnuradio.eng_option import eng_option
@@ -20,9 +19,10 @@ from gnuradio.wxgui import forms
 from gnuradio.wxgui import numbersink2
 from grc_gnuradio import wxgui as grc_wxgui
 from optparse import OptionParser
+import osmosdr
 import wx
 
-class fcd_testing_gui_block(grc_wxgui.top_block_gui):
+class fcd_osmo_testing_gui_block(grc_wxgui.top_block_gui):
 
 	def __init__(self):
 		grc_wxgui.top_block_gui.__init__(self, title="FCD FM Receiver")
@@ -172,37 +172,6 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 			proportion=1,
 		)
 		self.GridAdd(_offset_coarse_sizer, 6, 2, 1, 2)
-		_mixer_gain_sizer = wx.BoxSizer(wx.VERTICAL)
-		self._mixer_gain_text_box = forms.text_box(
-			parent=self.GetWin(),
-			sizer=_mixer_gain_sizer,
-			value=self.mixer_gain,
-			callback=self.set_mixer_gain,
-			label="RF",
-			converter=forms.float_converter(),
-			proportion=0,
-		)
-		self._mixer_gain_slider = forms.slider(
-			parent=self.GetWin(),
-			sizer=_mixer_gain_sizer,
-			value=self.mixer_gain,
-			callback=self.set_mixer_gain,
-			minimum=-5,
-			maximum=30,
-			num_steps=35,
-			style=wx.SL_HORIZONTAL,
-			cast=float,
-			proportion=1,
-		)
-		self.GridAdd(_mixer_gain_sizer, 7, 3, 1, 1)
-		self._freq_text_box = forms.text_box(
-			parent=self.GetWin(),
-			value=self.freq,
-			callback=self.set_freq,
-			label="FCD Freq",
-			converter=forms.float_converter(),
-		)
-		self.GridAdd(self._freq_text_box, 5, 1, 1, 1)
 		self._display_selector_chooser = forms.drop_down(
 			parent=self.GetWin(),
 			value=self.display_selector,
@@ -276,12 +245,41 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 			show_gauge=True,
 		)
 		self.Add(self.power_sink.win)
+		self.osmosdr_source_c_0 = osmosdr.source_c( args="nchan=" + str(1) + " " + ""  )
+		self.osmosdr_source_c_0.set_sample_rate(samp_rate)
+		self.osmosdr_source_c_0.set_center_freq(0, 0)
+		self.osmosdr_source_c_0.set_freq_corr(0, 0)
+		self.osmosdr_source_c_0.set_gain_mode(0, 0)
+		self.osmosdr_source_c_0.set_gain(0, 0)
 		self.nbfm_normal = blks2.nbfm_rx(
 			audio_rate=48000,
 			quad_rate=96000,
 			tau=75e-6,
 			max_dev=5e3,
 		)
+		_mixer_gain_sizer = wx.BoxSizer(wx.VERTICAL)
+		self._mixer_gain_text_box = forms.text_box(
+			parent=self.GetWin(),
+			sizer=_mixer_gain_sizer,
+			value=self.mixer_gain,
+			callback=self.set_mixer_gain,
+			label="RF",
+			converter=forms.float_converter(),
+			proportion=0,
+		)
+		self._mixer_gain_slider = forms.slider(
+			parent=self.GetWin(),
+			sizer=_mixer_gain_sizer,
+			value=self.mixer_gain,
+			callback=self.set_mixer_gain,
+			minimum=-5,
+			maximum=30,
+			num_steps=35,
+			style=wx.SL_HORIZONTAL,
+			cast=float,
+			proportion=1,
+		)
+		self.GridAdd(_mixer_gain_sizer, 7, 3, 1, 1)
 		self.low_pass_filter = gr.fir_filter_ccf(1, firdes.low_pass(
 			1, samp_rate, width/2, trans, firdes.WIN_HAMMING, 6.76))
 		self.gr_simple_squelch_cc_0 = gr.simple_squelch_cc(sql_lev, 1)
@@ -289,6 +287,14 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 		self.gr_multiply_const_vxx_1 = gr.multiply_const_vff((af_gain, ))
 		self.gr_dc_blocker_0 = gr.dc_blocker_cc(256, True)
 		self.gr_complex_to_mag_squared_0 = gr.complex_to_mag_squared(1)
+		self._freq_text_box = forms.text_box(
+			parent=self.GetWin(),
+			value=self.freq,
+			callback=self.set_freq,
+			label="FCD Freq",
+			converter=forms.float_converter(),
+		)
+		self.GridAdd(self._freq_text_box, 5, 1, 1, 1)
 		self.fftsink = fftsink2.fft_sink_c(
 			self.GetWin(),
 			baseband_freq=rx_freq*display_selector,
@@ -307,18 +313,12 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 			size=(800,200),
 		)
 		self.GridAdd(self.fftsink.win, 0, 0, 5, 4)
-		self.fcd_source_c_1 = fcd.source_c("hw:1")
-		self.fcd_source_c_1.set_mixer_gain(mixer_gain)
-		self.fcd_source_c_1.set_freq_corr(-120)
-		self.fcd_source_c_1.set_freq(freq)
-		    
 		self.audio_sink = audio.sink(48000, "", True)
 
 		##################################################
 		# Connections
 		##################################################
 		self.connect((self.xlating_fir_filter, 0), (self.low_pass_filter, 0))
-		self.connect((self.fcd_source_c_1, 0), (self.xlating_fir_filter, 0))
 		self.connect((self.gr_complex_to_mag_squared_0, 0), (self.gr_nlog10_ff_0, 0))
 		self.connect((self.gr_nlog10_ff_0, 0), (self.power_sink, 0))
 		self.connect((self.gr_multiply_const_vxx_1, 0), (self.audio_sink, 1))
@@ -326,9 +326,10 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 		self.connect((self.gr_simple_squelch_cc_0, 0), (self.nbfm_normal, 0))
 		self.connect((self.nbfm_normal, 0), (self.gr_multiply_const_vxx_1, 0))
 		self.connect((self.low_pass_filter, 0), (self.gr_simple_squelch_cc_0, 0))
-		self.connect((self.fcd_source_c_1, 0), (self.gr_dc_blocker_0, 0))
 		self.connect((self.gr_dc_blocker_0, 0), (self.gr_complex_to_mag_squared_0, 0))
-		self.connect((self.fcd_source_c_1, 0), (self.fftsink, 0))
+		self.connect((self.osmosdr_source_c_0, 0), (self.gr_dc_blocker_0, 0))
+		self.connect((self.osmosdr_source_c_0, 0), (self.xlating_fir_filter, 0))
+		self.connect((self.gr_dc_blocker_0, 0), (self.fftsink, 0))
 
 	def get_samp_rate(self):
 		return self.samp_rate
@@ -337,6 +338,7 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 		self.samp_rate = samp_rate
 		self.low_pass_filter.set_taps(firdes.low_pass(1, self.samp_rate, self.width/2, self.trans, firdes.WIN_HAMMING, 6.76))
 		self.set_xlate_filter_taps(firdes.low_pass(1, self.samp_rate, 48000, 5000, firdes.WIN_HAMMING, 6.76))
+		self.osmosdr_source_c_0.set_sample_rate(self.samp_rate)
 		self.fftsink.set_sample_rate(self.samp_rate)
 
 	def get_offset_fine(self):
@@ -366,7 +368,6 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 		self.freq = freq
 		self.set_rx_freq(self.freq+(self.offset_coarse+self.offset_fine))
 		self._freq_text_box.set_value(self.freq)
-		self.fcd_source_c_1.set_freq(self.freq)
 
 	def get_xlate_filter_taps(self):
 		return self.xlate_filter_taps
@@ -417,7 +418,6 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 		self.rf_gain = rf_gain
 		self._rf_gain_slider.set_value(self.rf_gain)
 		self._rf_gain_text_box.set_value(self.rf_gain)
-		self.fcd_source_c_1.set_lna_gain(self.rf_gain)
 
 	def get_mixer_gain(self):
 		return self.mixer_gain
@@ -426,7 +426,6 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 		self.mixer_gain = mixer_gain
 		self._mixer_gain_slider.set_value(self.mixer_gain)
 		self._mixer_gain_text_box.set_value(self.mixer_gain)
-		self.fcd_source_c_1.set_mixer_gain(self.mixer_gain)
 
 	def get_display_selector(self):
 		return self.display_selector
@@ -448,6 +447,6 @@ class fcd_testing_gui_block(grc_wxgui.top_block_gui):
 if __name__ == '__main__':
 	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
 	(options, args) = parser.parse_args()
-	tb = fcd_testing_gui_block()
+	tb = fcd_osmo_testing_gui_block()
 	tb.Run(True)
 

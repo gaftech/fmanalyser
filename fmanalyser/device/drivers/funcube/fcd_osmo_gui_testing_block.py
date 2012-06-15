@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 ##################################################
 # Gnuradio Python Flow Graph
-# Title: Gr Rtl Gui
-# Generated: Fri Jun 15 08:07:38 2012
+# Title: Fcd Osmo Gui Testing Block
+# Generated: Fri Jun 15 08:11:45 2012
 ##################################################
 
 from gnuradio import audio
@@ -20,18 +20,18 @@ from optparse import OptionParser
 import osmosdr
 import wx
 
-class gr_rtl_gui(grc_wxgui.top_block_gui):
+class fcd_osmo_gui_testing_block(grc_wxgui.top_block_gui):
 
 	def __init__(self):
-		grc_wxgui.top_block_gui.__init__(self, title="Gr Rtl Gui")
+		grc_wxgui.top_block_gui.__init__(self, title="Fcd Osmo Gui Testing Block")
 		_icon_path = "/usr/share/icons/hicolor/32x32/apps/gnuradio-grc.png"
 		self.SetIcon(wx.Icon(_icon_path, wx.BITMAP_TYPE_ANY))
 
 		##################################################
 		# Variables
 		##################################################
-		self.freq = freq = 92000000
-		self.samp_rate = samp_rate = 3200000
+		self.freq = freq = 107700000
+		self.samp_rate = samp_rate = 96000
 		self.rf_gain = rf_gain = 0
 		self.gain = gain = 0
 		self.freq_display = freq_display = freq
@@ -213,10 +213,10 @@ class gr_rtl_gui(grc_wxgui.top_block_gui):
 	def set_freq(self, freq):
 		self.freq = freq
 		self.set_freq_display(self.freq)
-		self._freq_slider.set_value(self.freq)
-		self._freq_text_box.set_value(self.freq)
 		self.wxgui_fftsink2_0.set_baseband_freq(self.freq)
 		self.osmosdr_source_c_0.set_center_freq(self.freq, 0)
+		self._freq_slider.set_value(self.freq)
+		self._freq_text_box.set_value(self.freq)
 
 	def get_samp_rate(self):
 		return self.samp_rate
@@ -240,9 +240,9 @@ class gr_rtl_gui(grc_wxgui.top_block_gui):
 
 	def set_gain(self, gain):
 		self.gain = gain
+		self.osmosdr_source_c_0.set_gain(self.gain, 0)
 		self._gain_slider.set_value(self.gain)
 		self._gain_text_box.set_value(self.gain)
-		self.osmosdr_source_c_0.set_gain(self.gain, 0)
 
 	def get_freq_display(self):
 		return self.freq_display
@@ -290,6 +290,6 @@ class gr_rtl_gui(grc_wxgui.top_block_gui):
 if __name__ == '__main__':
 	parser = OptionParser(option_class=eng_option, usage="%prog: [options]")
 	(options, args) = parser.parse_args()
-	tb = gr_rtl_gui()
+	tb = fcd_osmo_gui_testing_block()
 	tb.Run(True)
 
