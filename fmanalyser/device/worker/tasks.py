@@ -7,18 +7,18 @@ class BaseTask(Loggable, Stoppable):
     
     def __init__(self):
         super(BaseTask, self).__init__()
-        self._done = False
+#        self._done = False
         self._retval = None
     
-    @property
-    def done(self):
-        return self._done
+#    @property
+#    def done(self):
+#        return self._done
     
     def perform(self, worker):
         try:
             self.logger.debug('performing %s...' % self)
             self._retval = self.run(worker)
-            self._done = True
+#            self._done = True
             self.logger.debug('%s done' % self)
         finally:
             self._stop.set()

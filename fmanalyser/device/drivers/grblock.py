@@ -7,6 +7,7 @@ class TopBlock(gr.top_block):
                  samp_rate,
                  source,
                  fft_size=1024,
+                 msg_q_limit = 0,
                  dc_blocker=True,
                  dc_blocker_length=32,
                  dc_blocker_long_form=True,
@@ -35,7 +36,7 @@ class TopBlock(gr.top_block):
         )
         chain.append(self.lp_fft)
 
-        self.msg_q = gr.msg_queue(16)
+        self.msg_q = gr.msg_queue(msg_q_limit)
         self.msg_sink = gr.message_sink(gr.sizeof_float*fft_size, self.msg_q, False)
         chain.append(self.msg_sink)
         

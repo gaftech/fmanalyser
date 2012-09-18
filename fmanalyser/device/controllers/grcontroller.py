@@ -7,7 +7,7 @@ from fmanalyser.device.drivers.grdevice import GrDevice
 class BaseGrController(BaseDeviceController):
 
     samp_rate = options.IntOption(required=True)    
-    scan_samples = options.IntOption(default=10,
+    scan_samples = options.IntOption(default=4,
         ini_help="Number of signal strength or fft acquirement per frequency while scanning")
     
     def make_device(self):
@@ -15,6 +15,22 @@ class BaseGrController(BaseDeviceController):
         return GrDevice(tb)
     
     def make_top_block(self):
+        return self.get_top_block_cls()(**self.get_top_block_kwargs())
+    
+    def get_top_block_cls(self):
+        from fmanalyser.device.drivers.grblock import TopBlock
+        return TopBlock
+    
+    def get_top_block_kwargs(self, **kwargs):
+        defaults = {
+            'samp_rate': self.samp_rate,
+            'msg_q_limit': self.scan_samples,
+            'source': self.get_source_block(),
+        }
+        defaults.update(kwargs)
+        return defaults
+    
+    def get_source_block(self):
         raise NotImplementedError()
     
     def _probe_scan_level(self, worker):
@@ -34,8 +50,10 @@ class BaseGrController(BaseDeviceController):
         tb = worker.device.block
         q = tb.msg_q
         
+        self.logger.debug("flushing queue (size=%s)" % q.count())        
         q.flush()
         
+        self.logger.debug("acquiring %s fft(s)..." % self.scan_samples)
         level_arrays = []
         for i in range(self.scan_samples):
             
@@ -59,9 +77,13 @@ class BaseGrController(BaseDeviceController):
         
             level_arrays.append(levs)
         
+            self.logger.debug("FFT #%s acquired. queue size=%s" % (i, q.count()))
+        
         # Freq values
         span = tb.samp_rate / 1000
         freqs = np.linspace(-span/2, span/2, len(levs))
+        
+        self.logger.debug('fft(s) acquired')
         
         return freqs, level_arrays
     

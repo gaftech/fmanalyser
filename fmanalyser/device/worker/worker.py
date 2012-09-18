@@ -41,7 +41,8 @@ class Worker(Loggable, Stoppable):
                 else:
                     try:
                         self._current_task.perform(self)
-                        self._current_task = None
+                        with self._lock:
+                            self._current_task = None
                     except DeviceError, e:
                         self.logger.info('device error while performing task %s' % self._current_task)
                         self.logger.warning('device error: %s: %s' % (e.__class__.__name__, e))
@@ -83,13 +84,14 @@ class Worker(Loggable, Stoppable):
     def stop(self, timeout=5):
         self.logger.debug('stopping worker...')
         super(Worker, self).stop()
-        if self._current_task is not None and not self._current_task.stopped:
-            self.logger.debug('stopping current task  : %s' % self._current_task)
-            self._current_task.stop()
-        for task in self._queue:
-            if not task.stopped:
-                self.logger.debug('stopping queued task : %s' % task)
-                task.stop()
+        with self._lock:
+            if self._current_task is not None and not self._current_task.stopped:
+                self.logger.debug('stopping current task  : %s' % self._current_task)
+                self._current_task.stop()
+            for task in self._queue:
+                if not task.stopped:
+                    self.logger.debug('stopping queued task : %s' % task)
+                    task.stop()
         if self._thread_started:
             self._thread.join(timeout)
         if self._thread.is_alive():

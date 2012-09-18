@@ -4,16 +4,11 @@ from fmanalyser.conf import options
 class GrRtl2832Controller(BaseGrController):
     
     samp_rate = options.IntOption(default=3200000)
-    osmo_source = options.BooleanOption(default=True,
+    osmo = options.BooleanOption(default=True,
         ini_help="Use osmo-sdr source block. If false, gr-baz one is used.")
     
-    def make_top_block(self):
-        from fmanalyser.device.drivers.grblock import TopBlock
-        b = TopBlock(samp_rate=self.samp_rate, source=self._make_source())
-        return b
-
-    def _make_source(self):
-        if self.osmo_source:
+    def get_source_block(self):
+        if self.osmo:
             return self._make_osmo_source()
         else:
             return self._make_rtl_source()    

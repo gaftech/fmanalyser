@@ -12,6 +12,7 @@ _core_controllers = {
     'rtl':          'rtl2832.Rtl2832Controller',
     'grrtl':        'gr_rtl2832.GrRtl2832Controller',
     'si4735_ar':    'si4735_shield_arduino.Si4735ArduinoShieldController',
+    'inotuner':     'inotuner.ArduinoTunerController',       
 }
 
 def get_controller_class(model_name):

@@ -21,6 +21,12 @@ class PortLocked(DeviceNotFound):
 class MultipleDevicesFound(DeviceError):
     """Raised when many devices matching a request are connected"""
 
+class NoDeviceResponse(DeviceError):
+    """Raised when a device didn't respond"""
+
+class DeviceTimeout(DeviceError):
+    """Raised if an expected response is not given by a device, regarding a timeout"""
+
 class DeviceResponseError(DeviceError):
     """Indicates that a response has been received but doesn't match expected criterias"""
 

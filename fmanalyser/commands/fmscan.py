@@ -3,16 +3,16 @@
 from fmanalyser.conf import fmconfig
 from fmanalyser.device.controllers.base import DeviceController
 from fmanalyser.exceptions import CommandError
-from fmanalyser.models.bandscan import BaseBandscan, FFTBandscan
+from fmanalyser.models.bandscan import BaseBandscan
 from fmanalyser.models.signals import scan_updated, fft_scan_updated
 from fmanalyser.utils.command import BaseCommand
 from itertools import izip
 from optparse import make_option
+import numpy
 import os
 import subprocess
 import sys
 import tempfile
-import numpy
 
 class Command(BaseCommand):
 
